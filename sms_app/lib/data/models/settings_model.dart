@@ -21,12 +21,16 @@ class SettingsModel extends HiveObject {
   @HiveField(4, defaultValue: 'day')
   final String limitPeriod; // 'day', 'month'
 
+  @HiveField(5, defaultValue: [])
+  final List<String> simPriority; // List of SIM IDs in priority order
+
   SettingsModel({
     this.activeSimId,
     this.dailySmsLimit = 100,
     this.themeMode = 'system',
     this.isLoggedIn = false,
     this.limitPeriod = 'day',
+    this.simPriority = const [],
   });
 
   /// Creates a copy of the settings with modified fields.
@@ -37,6 +41,7 @@ class SettingsModel extends HiveObject {
     String? themeMode,
     bool? isLoggedIn,
     String? limitPeriod,
+    List<String>? simPriority,
   }) {
     return SettingsModel(
       activeSimId: clearActiveSim ? null : (activeSimId ?? this.activeSimId),
@@ -44,6 +49,7 @@ class SettingsModel extends HiveObject {
       themeMode: themeMode ?? this.themeMode,
       isLoggedIn: isLoggedIn ?? this.isLoggedIn,
       limitPeriod: limitPeriod ?? this.limitPeriod,
+      simPriority: simPriority ?? this.simPriority,
     );
   }
 

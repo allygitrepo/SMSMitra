@@ -3,7 +3,7 @@ import '../../features/splash/splash_screen.dart';
 import '../../features/auth/login_screen.dart';
 import '../../features/auth/register_screen.dart';
 import '../../features/settings/settings_screen.dart';
-import '../../features/home/home_screen.dart';
+import '../../features/main_navigation.dart';
 
 /// Centralized routing configuration using GoRouter.
 class AppRouter {
@@ -29,12 +29,8 @@ class AppRouter {
         builder: (context, state) => const RegisterScreen(),
       ),
       GoRoute(
-        path: settings,
-        builder: (context, state) => const SettingsScreen(),
-      ),
-      GoRoute(
         path: home,
-        builder: (context, state) => const HomeScreen(),
+        builder: (context, state) => const MainNavigation(),
       ),
     ],
   );

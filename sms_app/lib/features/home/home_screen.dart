@@ -138,97 +138,160 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (didPop, result) async {
-        if (didPop) return;
-        final shouldExit = await _showConfirmationDialog(
-          title: 'Exit App',
-          content: 'Are you sure you want to close the app?',
-          confirmText: 'Exit',
-        );
-        if (shouldExit) {
-          await SystemChannels.platform.invokeMethod('SystemNavigator.pop');
-        }
-      },
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('New Message'),
-          centerTitle: true,
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.settings_outlined),
-              onPressed: () => context.push(AppRouter.settings),
-              tooltip: 'Settings',
-            ),
-            IconButton(
-              icon: const Icon(Icons.logout_rounded),
-              onPressed: () async {
-                final confirm = await _showConfirmationDialog(
-                  title: 'Logout',
-                  content: 'Are you sure you want to log out?',
-                  confirmText: 'Logout',
-                );
-                if (confirm) {
-                  await AuthService().logout();
-                  if (mounted) context.go(AppRouter.login);
-                }
-              },
-              tooltip: 'Logout',
-            ),
-            const SizedBox(width: 8),
-          ],
-        ),
-        body: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Dashboard'),
+        centerTitle: true,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildStatusHeader(),
+            const SizedBox(height: 24),
+            
+            _buildSectionHeader('Overview'),
+            const SizedBox(height: 12),
+            Row(
               children: [
-                const SizedBox(height: 10),
-                CustomTextField(
-                  label: 'Receiver Number',
-                  hint: 'e.g. +91 9876543210',
-                  icon: Icons.contact_phone_outlined,
-                  controller: _phoneController,
-                  keyboardType: TextInputType.phone,
-                  validator: ValidationHelper.validatePhone,
-                ),
-                
-                const Padding(
-                  padding: EdgeInsets.only(left: 4, bottom: 8),
-                  child: Text(
-                    'Message',
-                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-                  ),
-                ),
-                TextFormField(
-                  controller: _messageController,
-                  maxLines: 5,
-                  maxLength: 160,
-                  validator: (val) => ValidationHelper.validateNotEmpty(val, 'Message'),
-                  decoration: InputDecoration(
-                    hintText: 'Type your message here...',
-                    alignLabelWithHint: true,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  ),
-                ),
-                
-                const SizedBox(height: 32),
-                GradientButton(
-                  text: 'Send Message',
-                  onPressed: _handleSend,
-                  isLoading: _isSending,
-                ),
-                
-                const SizedBox(height: 40),
-                _buildTipsCard(),
+                Expanded(child: _buildStatCard('Sent Today', '12', Icons.send, Colors.orange)),
+                const SizedBox(width: 16),
+                Expanded(child: _buildStatCard('Daily Limit', '100', Icons.timer, Colors.blue)),
               ],
             ),
+            const SizedBox(height: 16),
+            _buildStatCard('Active Gateway', 'SIM 1 (Airtel)', Icons.router, Colors.green, isFullWidth: true),
+            
+            const SizedBox(height: 32),
+            _buildSectionHeader('Quick Send'),
+            const SizedBox(height: 12),
+            _buildQuickSendForm(),
+            
+            const SizedBox(height: 32),
+            _buildTipsCard(),
+            const SizedBox(height: 40),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatusHeader() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.green.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.green.withOpacity(0.2)),
+      ),
+      child: Row(
+        children: [
+          _buildPulseIndicator(),
+          const SizedBox(width: 12),
+          const Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Gateway Service Active',
+                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green),
+              ),
+              Text(
+                'Waiting for web requests...',
+                style: TextStyle(fontSize: 12, color: Colors.green),
+              ),
+            ],
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPulseIndicator() {
+    return Container(
+      width: 12,
+      height: 12,
+      decoration: const BoxDecoration(
+        color: Colors.green,
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(color: Colors.green, blurRadius: 4, spreadRadius: 2),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title) {
+    return Text(
+      title,
+      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+    );
+  }
+
+  Widget _buildStatCard(String label, String value, IconData icon, Color color, {bool isFullWidth = false}) {
+    return Container(
+      width: isFullWidth ? double.infinity : null,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withOpacity(0.1)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: color, size: 28),
+          const SizedBox(height: 12),
+          Text(label, style: const TextStyle(color: Colors.grey, fontSize: 13)),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuickSendForm() {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.02),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.grey.withOpacity(0.1)),
+      ),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          children: [
+            CustomTextField(
+              label: 'Receiver Number',
+              hint: '+91...',
+              icon: Icons.phone_android,
+              controller: _phoneController,
+              keyboardType: TextInputType.phone,
+              validator: ValidationHelper.validatePhone,
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _messageController,
+              maxLines: 3,
+              validator: (val) => ValidationHelper.validateNotEmpty(val, 'Message'),
+              decoration: InputDecoration(
+                hintText: 'Type message...',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+            const SizedBox(height: 24),
+            GradientButton(
+              text: 'Send Now',
+              onPressed: _handleSend,
+              isLoading: _isSending,
+            ),
+          ],
         ),
       ),
     );

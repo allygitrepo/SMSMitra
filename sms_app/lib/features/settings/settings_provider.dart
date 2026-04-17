@@ -36,7 +36,7 @@ class SettingsNotifier extends StateNotifier<SettingsModel> {
       
       if (sims.isNotEmpty && state.activeSimId == null) {
         debugPrint('SettingsNotifier: Setting default active SIM: ${sims.first.id}');
-        updateActiveSim(sims.first.id);
+        toggleSim(sims.first.id, true);
       }
       return sims;
     } catch (e) {
@@ -45,11 +45,33 @@ class SettingsNotifier extends StateNotifier<SettingsModel> {
     }
   }
 
-  /// Updates the active SIM ID.
-  void updateActiveSim(String? id) {
+  /// Updates the active SIM ID and handles multi-SIM priority.
+  void toggleSim(String id, bool selected) {
+    List<String> newPriority = List.from(state.simPriority);
+    
+    if (selected) {
+      if (!newPriority.contains(id)) {
+        newPriority.add(id);
+      }
+    } else {
+      newPriority.remove(id);
+    }
+
     state = state.copyWith(
-      activeSimId: id,
-      clearActiveSim: id == null,
+      simPriority: newPriority,
+      activeSimId: newPriority.isNotEmpty ? newPriority.first : null,
+      clearActiveSim: newPriority.isEmpty,
+    );
+    
+    StorageService.saveSettings(state);
+  }
+
+  /// Updates the priority order of SIMs.
+  void updatePriority(List<String> newPriority) {
+    state = state.copyWith(
+      simPriority: newPriority,
+      activeSimId: newPriority.isNotEmpty ? newPriority.first : null,
+      clearActiveSim: newPriority.isEmpty,
     );
     StorageService.saveSettings(state);
   }
