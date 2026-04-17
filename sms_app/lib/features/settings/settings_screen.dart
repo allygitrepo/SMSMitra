@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/helpers/snackbar_helper.dart';
 import '../../core/routes/app_router.dart';
 import '../../data/models/sim_model.dart';
+import '../../data/models/settings_model.dart';
 import '../../shared/widgets/gradient_button.dart';
 import 'settings_provider.dart';
 
@@ -18,34 +19,56 @@ class SettingsScreen extends ConsumerStatefulWidget {
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   List<SimModel> _availableSims = [];
   bool _isDetecting = true;
+  late TextEditingController _limitController;
 
   @override
   void initState() {
     super.initState();
+    _limitController = TextEditingController();
     _initDetection();
+  }
+
+  @override
+  void dispose() {
+    _limitController.dispose();
+    super.dispose();
   }
 
   Future<void> _initDetection() async {
     debugPrint('SettingsScreen: Initializing SIM detection...');
     try {
-      // Add a timeout to prevent infinite loader if plugin hangs
       final sims = await ref
           .read(settingsProvider.notifier)
           .detectSims()
-          .timeout(const Duration(seconds: 10), onTimeout: () {
-        debugPrint('SettingsScreen: SIM detection timed out after 10 seconds.');
-        return [];
-      });
+          .timeout(
+            const Duration(seconds: 10),
+            onTimeout: () {
+              debugPrint(
+                'SettingsScreen: SIM detection timed out after 10 seconds.',
+              );
+              return [];
+            },
+          );
 
-      debugPrint('SettingsScreen: Detection completed. SIMs found: ${sims.length}');
+      debugPrint(
+        'SettingsScreen: Detection completed. SIMs found: ${sims.length}',
+      );
       if (mounted) {
         setState(() {
           _availableSims = sims;
           _isDetecting = false;
         });
+
+        // Initialize controller with current limit
+        final settings = ref.read(settingsProvider);
+        _limitController.text = settings.dailySmsLimit.toString();
+
         if (sims.isEmpty) {
           debugPrint('SettingsScreen: No SIMs found, showing warning.');
-          MessageHelper.showWarning(context, 'No SIM cards detected or permission denied');
+          MessageHelper.showWarning(
+            context,
+            'No SIM cards detected or permission denied',
+          );
         }
       }
     } catch (e) {
@@ -61,6 +84,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final settings = ref.watch(settingsProvider);
     final notifier = ref.read(settingsProvider.notifier);
 
+    // Sync controller if state changes externally
+    if (_limitController.text != settings.dailySmsLimit.toString()) {
+      _limitController.text = settings.dailySmsLimit.toString();
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Setup & Settings'),
@@ -70,8 +98,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               settings.themeMode == 'dark'
                   ? Icons.dark_mode
                   : settings.themeMode == 'light'
-                      ? Icons.light_mode
-                      : Icons.settings_brightness,
+                  ? Icons.light_mode
+                  : Icons.settings_brightness,
             ),
             onPressed: () => notifier.cycleTheme(),
             tooltip: 'Cycle Theme',
@@ -90,19 +118,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             else if (_availableSims.isEmpty)
               _buildErrorCard('No SIM cards found. Please check permissions.')
             else
-              ..._availableSims.map((sim) => _buildSimCard(sim, settings.activeSimId, notifier)),
-            
-            const SizedBox(height: 32),
-            _buildSectionHeader('Daily SMS Limit'),
-            const SizedBox(height: 12),
-            _buildLimitSelector(settings.dailySmsLimit, notifier),
-            
+              ..._availableSims.map(
+                (sim) => _buildSimItem(sim, settings, notifier),
+              ),
+
             const SizedBox(height: 48),
             GradientButton(
               text: 'Save & Continue',
               onPressed: () {
                 if (settings.activeSimId == null && _availableSims.isNotEmpty) {
-                  MessageHelper.showWarning(context, 'Please select a SIM card');
+                  MessageHelper.showWarning(
+                    context,
+                    'Please select a SIM card',
+                  );
                   return;
                 }
                 context.go(AppRouter.home);
@@ -125,51 +153,106 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  Widget _buildSimCard(SimModel sim, String? activeId, SettingsNotifier notifier) {
-    final isSelected = sim.id == activeId;
-    return Card(
-      elevation: 0,
-      margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
-          color: isSelected ? Colors.orange : Colors.grey.withOpacity(0.2),
-          width: isSelected ? 2 : 1,
-        ),
-      ),
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: isSelected ? Colors.orange.withOpacity(0.1) : Colors.grey.withOpacity(0.1),
-          child: Icon(Icons.sim_card, color: isSelected ? Colors.orange : Colors.grey),
-        ),
-        title: Text(sim.carrierName, style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Text('Slot ${sim.slotIndex + 1} • ${sim.number}'),
-        trailing: isSelected ? const Icon(Icons.check_circle, color: Colors.orange) : null,
-        onTap: () => notifier.updateActiveSim(sim.id),
-      ),
-    );
-  }
+  Widget _buildSimItem(
+    SimModel sim,
+    SettingsModel settings,
+    SettingsNotifier notifier,
+  ) {
+    final isSelected = sim.id == settings.activeSimId;
 
-  Widget _buildLimitSelector(int currentLimit, SettingsNotifier notifier) {
-    final limits = [100, 500, 1000, -1];
-    return Wrap(
-      spacing: 10,
-      runSpacing: 10,
-      children: limits.map((limit) {
-        final isSelected = currentLimit == limit;
-        final label = limit == -1 ? 'Unlimited' : '$limit/day';
-        return ChoiceChip(
-          label: Text(label),
-          selected: isSelected,
-          onSelected: (_) => notifier.updateLimit(limit),
-          selectedColor: Colors.orange.withOpacity(0.2),
-          labelStyle: TextStyle(
-            color: isSelected ? Colors.orange : null,
-            fontWeight: isSelected ? FontWeight.bold : null,
+    return Column(
+      children: [
+        CheckboxListTile(
+          title: Text(
+            sim.carrierName,
+            style: const TextStyle(fontWeight: FontWeight.bold),
           ),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        );
-      }).toList(),
+          subtitle: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(sim.number),
+              const Text(
+                '-1 is unlimited',
+                style: TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+            ],
+          ),
+          value: isSelected,
+          activeColor: Colors.orange,
+          onChanged: (val) {
+            notifier.updateActiveSim(val == true ? sim.id : null);
+          },
+          secondary: Icon(
+            Icons.sim_card,
+            color: isSelected ? Colors.orange : Colors.grey,
+          ),
+          contentPadding: EdgeInsets.zero,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+        if (isSelected)
+          Padding(
+            padding: const EdgeInsets.only(left: 56, right: 16, bottom: 16),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _limitController,
+                    keyboardType: TextInputType.number,
+
+                    decoration: InputDecoration(
+                      labelText: 'SMS Limit',
+
+                      isDense: true,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      helperText: settings.dailySmsLimit == -1
+                          ? 'Unlimited'
+                          : null,
+                    ),
+                    onChanged: (val) {
+                      final limit = int.tryParse(val);
+                      if (limit != null && limit >= -1) {
+                        notifier.updateLimit(limit);
+                      } else if (limit != null && limit < -1) {
+                        _limitController.text = '-1';
+                        notifier.updateLimit(-1);
+                      }
+                    },
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey.shade400),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: DropdownButton<String>(
+                    value: settings.limitPeriod,
+                    underline: const SizedBox(),
+                    items: const [
+                      DropdownMenuItem(value: 'day', child: Text('Per Day')),
+                      DropdownMenuItem(
+                        value: 'month',
+                        child: Text('Per Month'),
+                      ),
+                    ],
+                    onChanged: (val) {
+                      if (val != null) notifier.updateLimitPeriod(val);
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        const Divider(),
+      ],
     );
   }
 
@@ -185,7 +268,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         children: [
           const Icon(Icons.error_outline, color: Colors.red),
           const SizedBox(width: 12),
-          Expanded(child: Text(message, style: const TextStyle(color: Colors.red))),
+          Expanded(
+            child: Text(message, style: const TextStyle(color: Colors.red)),
+          ),
         ],
       ),
     );

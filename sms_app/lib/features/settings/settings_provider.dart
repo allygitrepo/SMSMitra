@@ -46,14 +46,23 @@ class SettingsNotifier extends StateNotifier<SettingsModel> {
   }
 
   /// Updates the active SIM ID.
-  void updateActiveSim(String id) {
-    state = state.copyWith(activeSimId: id);
+  void updateActiveSim(String? id) {
+    state = state.copyWith(
+      activeSimId: id,
+      clearActiveSim: id == null,
+    );
     StorageService.saveSettings(state);
   }
 
   /// Updates the daily SMS limit.
   void updateLimit(int limit) {
     state = state.copyWith(dailySmsLimit: limit);
+    StorageService.saveSettings(state);
+  }
+
+  /// Updates the SMS limit period (day/month).
+  void updateLimitPeriod(String period) {
+    state = state.copyWith(limitPeriod: period);
     StorageService.saveSettings(state);
   }
 
