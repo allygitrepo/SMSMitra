@@ -81,3 +81,30 @@ exports.updateFcmToken = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+exports.updateProfile = async (req, res) => {
+  try {
+    const { userId, fullName, phoneNumber } = req.body;
+    const user = await User.findByPk(userId);
+
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    if (fullName) user.fullName = fullName;
+    if (phoneNumber) user.phoneNumber = phoneNumber;
+    
+    await user.save();
+
+    res.json({
+      success: true,
+      user: {
+        id: user.id,
+        fullName: user.fullName,
+        email: user.email,
+        phoneNumber: user.phoneNumber,
+        deviceCode: user.deviceCode
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};

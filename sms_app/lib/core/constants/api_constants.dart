@@ -6,6 +6,7 @@ class ApiConstants {
   static const String register = '/auth/register';
   static const String login = '/auth/login';
   static const String updateToken = '/auth/update-token';
+  static const String updateProfile = '/auth/update-profile';
 
   // SMS Endpoints
   static const String triggerSms = '/sms/trigger';
