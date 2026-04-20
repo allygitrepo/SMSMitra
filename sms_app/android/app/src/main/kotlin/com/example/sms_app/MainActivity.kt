@@ -78,9 +78,20 @@ class MainActivity: FlutterActivity() {
                 for (info in activeSubscriptionInfoList) {
                     val map = mutableMapOf<String, Any?>()
                     map["id"] = info.subscriptionId.toString()
-                    map["carrierName"] = info.displayName.toString()
+                    // Try to get a real name, fallback to display name or slot index
+                    val carrier = info.carrierName?.toString()
+                    val display = info.displayName?.toString()
+                    
+                    map["carrierName"] = if (!carrier.isNullOrBlank() && !carrier.contains("SIM", ignoreCase = true)) {
+                        carrier
+                    } else if (!display.isNullOrBlank()) {
+                        display
+                    } else {
+                        "SIM ${info.simSlotIndex + 1}"
+                    }
+
                     map["slotIndex"] = info.simSlotIndex
-                    map["number"] = info.number ?: "Unknown Number"
+                    map["number"] = info.number ?: ""
                     simCards.add(map)
                 }
             }
