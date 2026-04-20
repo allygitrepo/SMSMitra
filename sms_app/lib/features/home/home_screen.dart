@@ -6,18 +6,25 @@ import '../../core/helpers/snackbar_helper.dart';
 import '../../core/routes/app_router.dart';
 import '../../data/services/sms_service.dart';
 import '../../data/services/auth_service.dart';
+import '../../data/services/sms_api_service.dart';
+import 'package:sms_app/data/services/storage_service.dart';
 import '../../shared/widgets/custom_text_field.dart';
 import '../../shared/widgets/gradient_button.dart';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../data/models/sim_model.dart';
+import '../settings/settings_provider.dart';
+import 'stats_provider.dart';
+
 /// The main operational screen of the app where users send SMS.
-class HomeScreen extends StatefulWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends ConsumerState<HomeScreen> {
   final _formKey = GlobalKey<FormState>();
   final _phoneController = TextEditingController();
   final _messageController = TextEditingController();
@@ -27,28 +34,58 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _handleSend() async {
     if (_formKey.currentState!.validate()) {
       setState(() => _isSending = true);
-      
+
       try {
         final permission = await _smsService.requestPermissions();
         if (!permission) {
           if (mounted) {
-            MessageHelper.showError(context, 'SMS Permission denied. Please enable in settings.');
+            MessageHelper.showError(
+              context,
+              'SMS Permission denied. Please enable in settings.',
+            );
           }
           return;
         }
 
-        await _smsService.sendSms(
-          number: _phoneController.text.trim(),
-          message: _messageController.text.trim(),
-        );
+        final number = _phoneController.text.trim();
+        final message = _messageController.text.trim();
+
+        await _smsService.sendSms(number: number, message: message);
+
+        final settings = ref.read(settingsProvider);
+        final user = StorageService.getUser();
+        if (user != null) {
+          await SmsApiService().createManualLog(
+            userId: user.id.toString(),
+            phoneNumber: number,
+            message: message,
+            status: 'sent',
+            simId: settings.activeSimId,
+          );
+        }
 
         if (mounted) {
+          ref.read(smsStatsProvider.notifier).incrementSent();
           MessageHelper.showSuccess(context, 'SMS sent successfully!');
           _messageController.clear(); // Clear message after success
         }
       } catch (e) {
+        // Log failure to server if user exists
+        final settings = ref.read(settingsProvider);
+        final user = StorageService.getUser();
+        if (user != null) {
+          await SmsApiService().createManualLog(
+            userId: user.id.toString(),
+            phoneNumber: _phoneController.text.trim(),
+            message: _messageController.text.trim(),
+            status: 'failed',
+            simId: settings.activeSimId,
+          );
+        }
+
         if (mounted) {
-          MessageHelper.showError(context, 'Failed to send SMS: $e');
+          ref.read(smsStatsProvider.notifier).incrementFailed();
+          MessageHelper.showError(context, e);
         }
       } finally {
         if (mounted) {
@@ -83,10 +120,7 @@ class _HomeScreenState extends State<HomeScreen> {
               Text(
                 content,
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.grey.shade600,
-                ),
+                style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
               ),
               const SizedBox(height: 32),
               Row(
@@ -112,10 +146,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: ElevatedButton(
                       onPressed: () => Navigator.pop(context, true),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: confirmText.toLowerCase().contains('exit') || 
-                                        confirmText.toLowerCase().contains('logout') 
-                                        ? Colors.redAccent 
-                                        : Colors.orange,
+                        backgroundColor:
+                            confirmText.toLowerCase().contains('exit') ||
+                                confirmText.toLowerCase().contains('logout')
+                            ? Colors.redAccent
+                            : Colors.orange,
                         foregroundColor: Colors.white,
                         elevation: 0,
                         padding: const EdgeInsets.symmetric(vertical: 14),
@@ -138,6 +173,37 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final settings = ref.watch(settingsProvider);
+    final stats = ref.watch(smsStatsProvider);
+    final simsAsync = ref.watch(simsProvider);
+
+    // Calculate dynamic stats
+    final int sentToday = stats['sentToday'] ?? 0;
+    final int perSimLimit = settings.dailySmsLimit;
+    final int activeSimCount = settings.simPriority.length;
+
+    String remainingText = '∞';
+    if (perSimLimit != -1) {
+      final int totalLimit = activeSimCount * perSimLimit;
+      final int remaining = (totalLimit - sentToday).clamp(0, totalLimit);
+      remainingText = remaining.toString();
+    }
+
+    // Find active SIM carrier name
+    String activeGateway = 'No active SIM';
+    simsAsync.whenData((sims) {
+      if (settings.activeSimId != null) {
+        final activeSim = sims
+            .where((s) => s.id == settings.activeSimId)
+            .firstOrNull;
+        if (activeSim != null) {
+          activeGateway = '${activeSim.carrierName} (${activeSim.number})';
+        }
+      } else if (sims.isNotEmpty) {
+        activeGateway = '${sims.first.carrierName} (${sims.first.number})';
+      }
+    });
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Dashboard'),
@@ -145,80 +211,132 @@ class _HomeScreenState extends State<HomeScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildStatusHeader(),
-            const SizedBox(height: 24),
-            
-            _buildSectionHeader('Overview'),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(child: _buildStatCard('Sent Today', '12', Icons.send, Colors.orange)),
-                const SizedBox(width: 16),
-                Expanded(child: _buildStatCard('Daily Limit', '100', Icons.timer, Colors.blue)),
-              ],
-            ),
-            const SizedBox(height: 16),
-            _buildStatCard('Active Gateway', 'SIM 1 (Airtel)', Icons.router, Colors.green, isFullWidth: true),
-            
-            const SizedBox(height: 32),
-            _buildSectionHeader('Quick Send'),
-            const SizedBox(height: 12),
-            _buildQuickSendForm(),
-            
-            const SizedBox(height: 32),
-            _buildTipsCard(),
-            const SizedBox(height: 40),
-          ],
+      body: RefreshIndicator(
+        onRefresh: () async {
+          await ref.read(simsProvider.future);
+          await ref.read(smsStatsProvider.notifier).fetchStats();
+        },
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // _buildStatusHeader(simsAsync),
+              // const SizedBox(height: 24),
+              _buildSectionHeader('Overview'),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildStatCard(
+                      'Sent Today',
+                      '$sentToday',
+                      Icons.send,
+                      Colors.orange,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: _buildStatCard(
+                      'Remaining',
+                      remainingText,
+                      Icons.hourglass_empty,
+                      Colors.blue,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              _buildStatCard(
+                'Active Gateway',
+                activeGateway,
+                Icons.router,
+                Colors.green,
+                isFullWidth: true,
+              ),
+
+              const SizedBox(height: 32),
+              _buildSectionHeader('Quick Send'),
+              const SizedBox(height: 12),
+              _buildQuickSendForm(),
+
+              const SizedBox(height: 32),
+              // _buildTipsCard(),
+              // const SizedBox(height: 40),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildStatusHeader() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.green.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.green.withOpacity(0.2)),
-      ),
-      child: Row(
-        children: [
-          _buildPulseIndicator(),
-          const SizedBox(width: 12),
-          const Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildStatusHeader(AsyncValue<List<SimModel>> simsAsync) {
+    return simsAsync.when(
+      data: (sims) {
+        final isActive = sims.isNotEmpty;
+        return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: (isActive ? Colors.green : Colors.red).withOpacity(0.1),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: (isActive ? Colors.green : Colors.red).withOpacity(0.2),
+            ),
+          ),
+          child: Row(
             children: [
-              Text(
-                'Gateway Service Active',
-                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green),
-              ),
-              Text(
-                'Waiting for web requests...',
-                style: TextStyle(fontSize: 12, color: Colors.green),
+              _buildPulseIndicator(isActive ? Colors.green : Colors.red),
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    isActive ? 'Gateway Service Active' : 'Gateway Inactive',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: isActive ? Colors.green : Colors.red,
+                    ),
+                  ),
+                  Text(
+                    isActive ? 'Ready to process requests' : 'No SIM detected',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isActive
+                          ? Colors.green.shade700
+                          : Colors.red.shade700,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
-        ],
-      ),
+        );
+      },
+      loading: () => const LinearProgressIndicator(),
+      error: (err, stack) => _buildStatusHeaderError(),
     );
   }
 
-  Widget _buildPulseIndicator() {
+  Widget _buildStatusHeaderError() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.red.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: const Text('Error detecting SIM status'),
+    );
+  }
+
+  Widget _buildPulseIndicator(Color color) {
     return Container(
       width: 12,
       height: 12,
-      decoration: const BoxDecoration(
-        color: Colors.green,
+      decoration: BoxDecoration(
+        color: color,
         shape: BoxShape.circle,
-        boxShadow: [
-          BoxShadow(color: Colors.green, blurRadius: 4, spreadRadius: 2),
-        ],
+        boxShadow: [BoxShadow(color: color, blurRadius: 4, spreadRadius: 2)],
       ),
     );
   }
@@ -230,7 +348,13 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildStatCard(String label, String value, IconData icon, Color color, {bool isFullWidth = false}) {
+  Widget _buildStatCard(
+    String label,
+    String value,
+    IconData icon,
+    Color color, {
+    bool isFullWidth = false,
+  }) {
     return Container(
       width: isFullWidth ? double.infinity : null,
       padding: const EdgeInsets.all(20),
@@ -269,7 +393,7 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             CustomTextField(
               label: 'Receiver Number',
-              hint: '+91...',
+              hint: '+91',
               icon: Icons.phone_android,
               controller: _phoneController,
               keyboardType: TextInputType.phone,
@@ -279,10 +403,13 @@ class _HomeScreenState extends State<HomeScreen> {
             TextFormField(
               controller: _messageController,
               maxLines: 3,
-              validator: (val) => ValidationHelper.validateNotEmpty(val, 'Message'),
+              validator: (val) =>
+                  ValidationHelper.validateNotEmpty(val, 'Message'),
               decoration: InputDecoration(
                 hintText: 'Type message...',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             ),
             const SizedBox(height: 24),
@@ -314,7 +441,10 @@ class _HomeScreenState extends State<HomeScreen> {
               SizedBox(width: 8),
               Text(
                 'Helpful Tips',
-                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange),
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.orange,
+                ),
               ),
             ],
           ),

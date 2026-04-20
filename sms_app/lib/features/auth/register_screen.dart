@@ -1,22 +1,25 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/helpers/validation_helper.dart';
 import '../../core/helpers/snackbar_helper.dart';
 import '../../core/routes/app_router.dart';
+import '../../core/constants/api_constants.dart';
 import '../../data/models/user_model.dart';
 import '../../data/services/auth_service.dart';
+import '../../data/providers/user_provider.dart';
 import '../../shared/widgets/custom_text_field.dart';
 import '../../shared/widgets/gradient_button.dart';
 
 /// Screen for new users to register.
-class RegisterScreen extends StatefulWidget {
+class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
 
   @override
-  State<RegisterScreen> createState() => _RegisterScreenState();
+  ConsumerState<RegisterScreen> createState() => _RegisterScreenState();
 }
 
-class _RegisterScreenState extends State<RegisterScreen> {
+class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
@@ -38,15 +41,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
         password: _passwordController.text,
       );
 
-      final success = await _authService.register(user);
+      final result = await _authService.register(user);
       
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
 
-      if (success && mounted) {
-        MessageHelper.showSuccess(context, 'Registration successful! Please login.');
+      if (result['success'] && mounted) {
+        ref.read(userProvider.notifier).refresh();
+        MessageHelper.showSuccess(context, 'Registration successful! Device Code: ${result['deviceCode']}');
         context.go(AppRouter.login);
       } else if (mounted) {
-        MessageHelper.showError(context, 'Registration failed. Please try again.');
+        MessageHelper.showError(context, result['message'] ?? 'Registration failed. Please try again.');
       }
     }
   }

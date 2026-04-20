@@ -1,41 +1,108 @@
-import 'storage_service.dart';
+import 'package:sms_app/data/services/storage_service.dart';
+import 'package:sms_app/shared/widgets/error_handler.dart';
+import 'api_service.dart';
 import '../models/user_model.dart';
+import '../../core/constants/api_constants.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 
-/// A service to handle authentication logic like login and registration.
 class AuthService {
-  /// Registers a new user and saves them locally.
-  Future<bool> register(UserModel user) async {
+  final ApiService _apiService = ApiService();
+
+  /// Registers a new user on the server.
+  Future<Map<String, dynamic>> register(UserModel user) async {
     try {
-      await StorageService.saveUser(user);
-      return true;
+      final response = await _apiService.post(
+        ApiConstants.register,
+        data: {
+          'fullName': user.fullName,
+          'email': user.email,
+          'phoneNumber': user.phoneNumber,
+          'password': user.password,
+        },
+      );
+
+      if (response.statusCode == 201) {
+        final data = response.data;
+        final newUser = user.copyWith(
+          id: data['user']['_id'] ?? data['user']['id'],
+          deviceCode: data['user']['deviceCode'],
+        );
+        await StorageService.saveUser(newUser);
+        return {
+          'success': true,
+          'message': 'Registration successful',
+          'deviceCode': data['user']['deviceCode'],
+        };
+      }
+      return {'success': false, 'message': 'Registration failed'};
     } catch (e) {
-      return false;
+      return {
+        'success': false,
+        'message': ErrorHandler.getUserFriendlyMessage(e),
+      };
     }
   }
 
-  /// Logs in a user by validating credentials against local storage.
+  /// Logs in a user via the server.
   Future<Map<String, dynamic>> login(String identity, String password) async {
-    final user = StorageService.getUser();
-    
-    if (user == null) {
-      return {'success': false, 'message': 'No user registered on this device'};
-    }
+    try {
+      final response = await _apiService.post(
+        ApiConstants.login,
+        data: {'email': identity, 'password': password},
+      );
 
-    // Check if identity (email or phone) and password match
-    bool identityMatch = (user.email == identity || user.phoneNumber == identity);
-    bool passwordMatch = (user.password == password);
+      if (response.statusCode == 200) {
+        final data = response.data;
+        final userData = data['user'];
 
-    if (identityMatch && passwordMatch) {
-      await StorageService.setLoggedIn(true);
-      return {'success': true, 'message': 'Login successful'};
-    } else if (!identityMatch) {
-      return {'success': false, 'message': 'Credentials do not match the registered user'};
-    } else {
-      return {'success': false, 'message': 'Incorrect password'};
+        // Create or update local user model with server data
+        final newUser = UserModel(
+          id: userData['_id'] ?? userData['id'],
+          fullName: userData['fullName'] ?? 'User',
+          email: userData['email'] ?? identity,
+          phoneNumber: userData['phoneNumber'] ?? '',
+          password: password, // Keep password for re-auth if needed
+          deviceCode: userData['deviceCode'],
+        );
+
+        await StorageService.saveUser(newUser);
+
+        // Save the logged-in state
+        await StorageService.setLoggedIn(true);
+        
+        // Sync FCM Token
+        await _updateFcmToken(data['user']['deviceCode']);
+
+        return {
+          'success': true, 
+          'message': 'Login successful',
+          'user': data['user']
+        };
+      }
+      return {'success': false, 'message': 'Invalid credentials'};
+    } catch (e) {
+      return {'success': false, 'message': ErrorHandler.getUserFriendlyMessage(e)};
     }
   }
 
-  /// Logout (clears user from storage if needed, but per requirements we just check registration)
+  /// Private helper to sync FCM token with the server
+  Future<void> _updateFcmToken(String deviceCode) async {
+    try {
+      final fcmToken = await FirebaseMessaging.instance.getToken();
+      if (fcmToken != null) {
+        await _apiService.post(
+          ApiConstants.updateToken,
+          data: {
+            'deviceCode': deviceCode,
+            'fcmToken': fcmToken,
+          },
+        );
+      }
+    } catch (e) {
+      print('FCM Token Sync Error: $e');
+    }
+  }
+
   Future<void> logout() async {
     await StorageService.setLoggedIn(false);
   }

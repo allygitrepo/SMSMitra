@@ -1,36 +1,23 @@
 import 'package:flutter/material.dart';
+import '../../shared/widgets/error_handler.dart';
 import '../theme/app_colors.dart';
 
 /// A utility class to show consistent and beautiful snackbars/toasts throughout the app.
 class MessageHelper {
   /// Shows a success snackbar with a green background.
   static void showSuccess(BuildContext context, String message) {
-    _showSnackBar(
-      context,
-      message,
-      AppColors.success,
-      Icons.check_circle_outline,
-    );
+    ErrorHandler.showSuccessSnackBar(context, message);
   }
 
   /// Shows an error snackbar with a red background.
-  static void showError(BuildContext context, String message) {
-    _showSnackBar(
-      context,
-      message,
-      AppColors.error,
-      Icons.error_outline,
-    );
+  /// Uses ErrorHandler to format the message and log to console.
+  static void showError(BuildContext context, dynamic errorOrMessage) {
+    ErrorHandler.showErrorSnackBar(context, errorOrMessage);
   }
 
   /// Shows a warning snackbar with an orange background.
   static void showWarning(BuildContext context, String message) {
-    _showSnackBar(
-      context,
-      message,
-      AppColors.orange,
-      Icons.warning_amber_rounded,
-    );
+    ErrorHandler.showWarningSnackBar(context, message);
   }
 
   /// Internal method to build and show the SnackBar.
@@ -64,7 +51,7 @@ class MessageHelper {
           borderRadius: BorderRadius.circular(12),
         ),
         margin: const EdgeInsets.all(16),
-        duration: const Duration(seconds: 3),
+        duration: const Duration(seconds: 2),
       ),
     );
   }

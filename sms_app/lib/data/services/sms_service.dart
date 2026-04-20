@@ -18,10 +18,13 @@ class SmsService {
   Future<bool> sendSms({
     required String number,
     required String message,
+    String? simId,
   }) async {
     try {
       final settings = StorageService.getSettings();
-      final subId = int.tryParse(settings.activeSimId ?? '');
+      // Use provided simId or fall back to active settings
+      final subIdStr = simId ?? settings.activeSimId;
+      final subId = int.tryParse(subIdStr ?? '');
 
       const channel = MethodChannel('com.example.sms_app/sim_info');
       final bool success = await channel.invokeMethod('sendSms', {

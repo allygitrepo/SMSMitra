@@ -5,6 +5,7 @@ import '../../data/models/settings_model.dart';
 import '../../data/models/sim_model.dart';
 import '../../data/services/storage_service.dart';
 import '../../data/services/sim_service.dart';
+import '../../data/services/sms_api_service.dart';
 import '../../core/theme/theme_provider.dart';
 
 /// Provider for managing app settings state.
@@ -17,8 +18,21 @@ final settingsProvider = StateNotifierProvider<SettingsNotifier, SettingsModel>(
 class SettingsNotifier extends StateNotifier<SettingsModel> {
   final Ref ref;
   final _simService = SimService();
+  final _smsApi = SmsApiService();
 
   SettingsNotifier(this.ref) : super(StorageService.getSettings());
+
+  Future<void> _syncWithServer() async {
+    final user = StorageService.getUser();
+    if (user == null) return;
+
+    final sims = await _simService.getAvailableSims();
+    await _smsApi.syncSims(
+      userId: user.id.toString(),
+      sims: sims,
+      settings: state,
+    );
+  }
 
   /// Detects SIM cards and updates settings if no active SIM is set.
   Future<List<SimModel>> detectSims() async {
@@ -33,11 +47,24 @@ class SettingsNotifier extends StateNotifier<SettingsModel> {
 
       final sims = await _simService.getAvailableSims();
       debugPrint('SettingsNotifier: Detected ${sims.length} SIM cards.');
-      
-      if (sims.isNotEmpty && state.activeSimId == null) {
-        debugPrint('SettingsNotifier: Setting default active SIM: ${sims.first.id}');
-        toggleSim(sims.first.id, true);
+
+      // If no SIMs are currently selected (first run or all removed),
+      // automatically select all detected SIMs to ensure they are "checked"
+      if (sims.isNotEmpty && state.simPriority.isEmpty) {
+        debugPrint(
+          'SettingsNotifier: First run or empty settings. Auto-selecting all detected SIMs.',
+        );
+        final allIds = sims.map((s) => s.id).toList();
+        state = state.copyWith(simPriority: allIds, activeSimId: allIds.first);
+        StorageService.saveSettings(state);
+      } else if (sims.isNotEmpty &&
+          state.activeSimId == null &&
+          state.simPriority.isNotEmpty) {
+        // If we have priority but no active SIM (shouldn't happen, but safety check)
+        state = state.copyWith(activeSimId: state.simPriority.first);
+        StorageService.saveSettings(state);
       }
+
       return sims;
     } catch (e) {
       debugPrint('SettingsNotifier: Error during SIM detection: $e');
@@ -48,7 +75,7 @@ class SettingsNotifier extends StateNotifier<SettingsModel> {
   /// Updates the active SIM ID and handles multi-SIM priority.
   void toggleSim(String id, bool selected) {
     List<String> newPriority = List.from(state.simPriority);
-    
+
     if (selected) {
       if (!newPriority.contains(id)) {
         newPriority.add(id);
@@ -62,8 +89,13 @@ class SettingsNotifier extends StateNotifier<SettingsModel> {
       activeSimId: newPriority.isNotEmpty ? newPriority.first : null,
       clearActiveSim: newPriority.isEmpty,
     );
-    
-    StorageService.saveSettings(state);
+
+    _saveAndSync();
+  }
+
+  Future<void> _saveAndSync() async {
+    await StorageService.saveSettings(state);
+    await _syncWithServer();
   }
 
   /// Updates the priority order of SIMs.
@@ -73,19 +105,19 @@ class SettingsNotifier extends StateNotifier<SettingsModel> {
       activeSimId: newPriority.isNotEmpty ? newPriority.first : null,
       clearActiveSim: newPriority.isEmpty,
     );
-    StorageService.saveSettings(state);
+    _saveAndSync();
   }
 
   /// Updates the daily SMS limit.
   void updateLimit(int limit) {
     state = state.copyWith(dailySmsLimit: limit);
-    StorageService.saveSettings(state);
+    _saveAndSync();
   }
 
   /// Updates the SMS limit period (day/month).
   void updateLimitPeriod(String period) {
     state = state.copyWith(limitPeriod: period);
-    StorageService.saveSettings(state);
+    _saveAndSync();
   }
 
   /// Cycles through theme modes: System -> Light -> Dark -> System.
@@ -110,7 +142,9 @@ class SettingsNotifier extends StateNotifier<SettingsModel> {
     }
 
     state = state.copyWith(themeMode: nextTheme);
-    StorageService.saveSettings(state);
+    StorageService.saveSettings(
+      state,
+    ); // Theme doesn't need server sync usually
 
     // Update the global theme provider
     ref.read(themeModeProvider.notifier).state = nextMode;

@@ -174,7 +174,11 @@ class _SplashScreenState extends State<SplashScreen>
     final isLoggedIn = StorageService.isLoggedIn();
 
     if (isLoggedIn) {
-      context.go(AppRouter.home);
+      if (StorageService.isSimConfigured()) {
+        context.go(AppRouter.home);
+      } else {
+        context.go(AppRouter.settings);
+      }
     } else {
       context.go(isRegistered ? AppRouter.login : AppRouter.register);
     }

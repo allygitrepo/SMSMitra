@@ -54,6 +54,11 @@ class StorageService {
     await box.put('app_settings', settings);
   }
 
+  /// Checks if the SIM configuration is already setup.
+  static bool isSimConfigured() {
+    return getSettings().activeSimId != null;
+  }
+
   /// Retrieves the saved app settings.
   static SettingsModel getSettings() {
     final box = Hive.box<SettingsModel>(settingsBoxName);

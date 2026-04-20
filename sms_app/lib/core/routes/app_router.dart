@@ -4,6 +4,7 @@ import '../../features/auth/login_screen.dart';
 import '../../features/auth/register_screen.dart';
 import '../../features/settings/settings_screen.dart';
 import '../../features/main_navigation.dart';
+import '../../features/profile/api_integration_screen.dart';
 
 /// Centralized routing configuration using GoRouter.
 class AppRouter {
@@ -12,6 +13,7 @@ class AppRouter {
   static const String register = '/register';
   static const String settings = '/settings';
   static const String home = '/home';
+  static const String apiIntegration = '/api-integration';
 
   static final router = GoRouter(
     initialLocation: splash,
@@ -31,6 +33,14 @@ class AppRouter {
       GoRoute(
         path: home,
         builder: (context, state) => const MainNavigation(),
+      ),
+      GoRoute(
+        path: settings,
+        builder: (context, state) => const SettingsScreen(),
+      ),
+      GoRoute(
+        path: apiIntegration,
+        builder: (context, state) => const ApiIntegrationScreen(),
       ),
     ],
   );

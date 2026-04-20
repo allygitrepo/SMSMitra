@@ -1,42 +1,52 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:sms_app/data/services/storage_service.dart';
 import '../../core/helpers/validation_helper.dart';
 import '../../core/helpers/snackbar_helper.dart';
 import '../../core/routes/app_router.dart';
 import '../../data/services/auth_service.dart';
+import '../../data/providers/user_provider.dart';
 import '../../shared/widgets/custom_text_field.dart';
 import '../../shared/widgets/gradient_button.dart';
 
 /// Screen for registered users to login.
-class LoginScreen extends StatefulWidget {
+class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _identityController = TextEditingController(); // Email or Phone
   final _passwordController = TextEditingController();
-  
+
   bool _isLoading = false;
   final _authService = AuthService();
 
   Future<void> _handleLogin() async {
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
-      
+
       final result = await _authService.login(
         _identityController.text.trim(),
         _passwordController.text,
       );
-      
-      setState(() => _isLoading = false);
+
+      if (mounted) setState(() => _isLoading = false);
 
       if (result['success'] && mounted) {
+        ref.read(userProvider.notifier).refresh();
         MessageHelper.showSuccess(context, result['message']);
-        context.go(AppRouter.settings);
+
+        // Navigate based on setup status
+        if (StorageService.isSimConfigured()) {
+          context.go(AppRouter.home);
+        } else {
+          context.go(AppRouter.settings);
+        }
       } else if (mounted) {
         MessageHelper.showError(context, result['message']);
       }
@@ -57,10 +67,7 @@ class _LoginScreenState extends State<LoginScreen> {
               children: [
                 const Text(
                   'Welcome Back!',
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),
                 const Text(
@@ -68,15 +75,16 @@ class _LoginScreenState extends State<LoginScreen> {
                   style: TextStyle(color: Colors.grey),
                 ),
                 const SizedBox(height: 40),
-                
+
                 CustomTextField(
                   label: 'Email or Phone',
                   hint: 'Enter registered email/phone',
                   icon: Icons.person_outline,
                   controller: _identityController,
-                  validator: (val) => ValidationHelper.validateNotEmpty(val, 'Identity'),
+                  validator: (val) =>
+                      ValidationHelper.validateNotEmpty(val, 'Identity'),
                 ),
-                
+
                 CustomTextField(
                   label: 'Password',
                   hint: 'Enter your password',
@@ -85,14 +93,14 @@ class _LoginScreenState extends State<LoginScreen> {
                   isPassword: true,
                   validator: ValidationHelper.validatePassword,
                 ),
-                
+
                 const SizedBox(height: 20),
                 GradientButton(
                   text: 'Login',
                   onPressed: _handleLogin,
                   isLoading: _isLoading,
                 ),
-                
+
                 const SizedBox(height: 24),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,

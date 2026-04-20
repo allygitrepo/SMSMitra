@@ -22,13 +22,14 @@ class SettingsModelAdapter extends TypeAdapter<SettingsModel> {
       themeMode: fields[2] as String,
       isLoggedIn: fields[3] == null ? false : fields[3] as bool,
       limitPeriod: fields[4] == null ? 'day' : fields[4] as String,
+      simPriority: fields[5] == null ? [] : (fields[5] as List).cast<String>(),
     );
   }
 
   @override
   void write(BinaryWriter writer, SettingsModel obj) {
     writer
-      ..writeByte(5)
+      ..writeByte(6)
       ..writeByte(0)
       ..write(obj.activeSimId)
       ..writeByte(1)
@@ -38,7 +39,9 @@ class SettingsModelAdapter extends TypeAdapter<SettingsModel> {
       ..writeByte(3)
       ..write(obj.isLoggedIn)
       ..writeByte(4)
-      ..write(obj.limitPeriod);
+      ..write(obj.limitPeriod)
+      ..writeByte(5)
+      ..write(obj.simPriority);
   }
 
   @override
