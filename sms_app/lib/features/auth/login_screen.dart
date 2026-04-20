@@ -65,6 +65,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
+                Center(
+                  child: Image.asset(
+                    'assets/SMS _mitra .png',
+                    width: 150,
+                    height: 150,
+                    fit: BoxFit.contain,
+                  ),
+                ),
+                const SizedBox(height: 24),
                 const Text(
                   'Welcome Back!',
                   style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
