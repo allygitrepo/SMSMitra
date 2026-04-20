@@ -169,7 +169,7 @@ class _SplashScreenState extends State<SplashScreen>
   Future<void> _navigateToNext() async {
     await Future.delayed(const Duration(seconds: 3));
     if (!mounted) return;
-    
+
     final isRegistered = StorageService.isUserRegistered();
     final isLoggedIn = StorageService.isLoggedIn();
 
@@ -273,6 +273,9 @@ class _SplashScreenState extends State<SplashScreen>
             Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
+                const SizedBox(
+                  height: 180,
+                ), // Pushes the logo much further down
                 ScaleTransition(
                   scale: _logoScale,
                   child: AnimatedBuilder(
@@ -281,29 +284,11 @@ class _SplashScreenState extends State<SplashScreen>
                       offset: Offset(0, _floatOffset.value),
                       child: child,
                     ),
-                    child: Container(
-                      padding: const EdgeInsets.all(24),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.15),
-                            blurRadius: 30,
-                            spreadRadius: 4,
-                          ),
-                          BoxShadow(
-                            color: AppColors.orange.withValues(alpha: 0.3),
-                            blurRadius: 50,
-                            spreadRadius: 8,
-                          ),
-                        ],
-                      ),
-                      child: const Icon(
-                        Icons.message_rounded,
-                        size: 72,
-                        color: AppColors.orange,
-                      ),
+                    child: Image.asset(
+                      'assets/SMS _mitra .png',
+                      width: 200, // Larger size for the logo
+                      height: 200,
+                      fit: BoxFit.contain,
                     ),
                   ),
                 ),

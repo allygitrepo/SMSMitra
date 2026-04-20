@@ -210,6 +210,81 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     return result ?? false;
   }
 
+  Future<bool> _showExitBottomSheet() async {
+    final result = await showModalBottomSheet<bool>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 24),
+              decoration: BoxDecoration(
+                color: Colors.grey.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const Icon(Icons.exit_to_app_rounded, size: 48, color: Colors.orange),
+            const SizedBox(height: 16),
+            const Text(
+              'Exit Application?',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Are you sure you want to close SMS Mitra?',
+              style: TextStyle(color: Colors.grey),
+            ),
+            const SizedBox(height: 32),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      side: const BorderSide(color: Colors.orange),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                    ),
+                    child: const Text('Cancel', style: TextStyle(color: Colors.orange)),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(context, true),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orange,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                    ),
+                    child: const Text('Exit Now'),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+    return result ?? false;
+  }
+
   @override
   Widget build(BuildContext context) {
     final settings = ref.watch(settingsProvider);
@@ -243,67 +318,76 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       }
     });
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Dashboard'),
-        centerTitle: true,
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-      ),
-      body: RefreshIndicator(
-        onRefresh: () async {
-          await ref.read(simsProvider.future);
-          await ref.read(smsStatsProvider.notifier).fetchStats();
-        },
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // _buildStatusHeader(simsAsync),
-              // const SizedBox(height: 24),
-              _buildSectionHeader('Overview'),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildStatCard(
-                      'Sent Today',
-                      '$sentToday',
-                      Icons.send,
-                      Colors.orange,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        final shouldExit = await _showExitBottomSheet();
+        if (shouldExit && mounted) {
+          SystemNavigator.pop();
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Dashboard'),
+          centerTitle: true,
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+        ),
+        body: RefreshIndicator(
+          onRefresh: () async {
+            await ref.read(simsProvider.future);
+            await ref.read(smsStatsProvider.notifier).fetchStats();
+          },
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // _buildStatusHeader(simsAsync),
+                // const SizedBox(height: 24),
+                _buildSectionHeader('Overview'),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildStatCard(
+                        'Sent Today',
+                        '$sentToday',
+                        Icons.send,
+                        Colors.orange,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: _buildStatCard(
-                      'Remaining',
-                      remainingText,
-                      Icons.hourglass_empty,
-                      Colors.blue,
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: _buildStatCard(
+                        'Remaining',
+                        remainingText,
+                        Icons.hourglass_empty,
+                        Colors.blue,
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              _buildStatCard(
-                'Active Gateway',
-                activeGateway,
-                Icons.router,
-                Colors.green,
-                isFullWidth: true,
-              ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                _buildStatCard(
+                  'Active Gateway',
+                  activeGateway,
+                  Icons.router,
+                  Colors.green,
+                  isFullWidth: true,
+                ),
 
-              const SizedBox(height: 32),
-              _buildSectionHeader('Quick Send'),
-              const SizedBox(height: 12),
-              _buildQuickSendForm(),
+                const SizedBox(height: 32),
+                _buildSectionHeader('Quick Send'),
+                const SizedBox(height: 12),
+                _buildQuickSendForm(),
 
-              const SizedBox(height: 32),
-              // _buildTipsCard(),
-              // const SizedBox(height: 40),
-            ],
+                const SizedBox(height: 32),
+                // const SizedBox(height: 40),
+              ],
+            ),
           ),
         ),
       ),
