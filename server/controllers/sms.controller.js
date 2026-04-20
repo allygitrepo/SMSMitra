@@ -45,19 +45,23 @@ exports.sendSmsTrigger = async (req, res) => {
     for (const sim of sims) {
       // Reset usage if it's a new day
       const lastUpdate = new Date(sim.updatedAt).toDateString();
-      if (lastUpdate !== today) {
+      if (lastUpdate !== today.toDateString()) {
         sim.currentUsage = 0;
         await sim.save();
       }
 
-      if (sim.currentUsage < sim.dailyLimit) {
+      if (sim.dailyLimit === -1 || sim.currentUsage < sim.dailyLimit) {
         selectedSim = sim;
         break;
       }
     }
 
-    if (!selectedSim && sims.length > 0) {
-      return res.status(400).json({ message: 'All SIMs have reached their daily limits' });
+    if (!selectedSim) {
+      return res.status(400).json({
+        message: sims.length === 0 
+          ? 'No SIM cards synced with this device' 
+          : 'All SIMs have reached their daily limits'
+      });
     }
 
     const log = await SmsLog.create({
@@ -231,6 +235,15 @@ exports.updateSmsStatus = async (req, res) => {
     log.simId = simId;
     await log.save();
 
+    // If a TRIGGERED SMS failed, we should return the reserved quota
+    if (status === 'failed' && simId) {
+      const sim = await SimDetail.findOne({ where: { userId: log.userId, simId } });
+      if (sim && sim.currentUsage > 0) {
+        sim.currentUsage -= 1;
+        await sim.save();
+      }
+    }
+
     // Trigger UI update on app
     notifyStatsUpdate(log.userId);
 
@@ -250,6 +263,15 @@ exports.createManualLog = async (req, res) => {
       simId,
       status
     });
+
+    // Increment usage on SIM for manual sends
+    if (status === 'sent' && simId) {
+      const sim = await SimDetail.findOne({ where: { userId, simId } });
+      if (sim) {
+        sim.currentUsage += 1;
+        await sim.save();
+      }
+    }
 
     // Trigger UI update on app
     notifyStatsUpdate(userId);

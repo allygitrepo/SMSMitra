@@ -70,12 +70,28 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           return;
         }
 
+        // Quota check
+        final stats = ref.read(smsStatsProvider);
+        final settings = ref.read(settingsProvider);
+        final sentToday = stats['sentToday'] ?? 0;
+        final dailyLimit = settings.dailySmsLimit;
+
+        if (sentToday >= dailyLimit) {
+          if (mounted) {
+            MessageHelper.showError(
+              context,
+              'Daily SMS limit reached ($dailyLimit). Please increase limit in settings.',
+            );
+          }
+          return;
+        }
+
         final number = _phoneController.text.trim();
         final message = _messageController.text.trim();
 
         await _smsService.sendSms(number: number, message: message);
 
-        final settings = ref.read(settingsProvider);
+        ref.read(settingsProvider);
         final user = StorageService.getUser();
         if (user != null) {
           await SmsApiService().createManualLog(
