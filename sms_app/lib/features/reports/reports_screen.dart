@@ -248,6 +248,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   }
 
   Widget _buildLogsTable(List<dynamic> logs) {
+    final simsAsync = ref.watch(simsProvider);
+    
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: SingleChildScrollView(
@@ -265,6 +267,14 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
             // Ignore 'Z' suffix to show exact DB time without timezone conversion
             final date = DateTime.parse(dateStr.replaceAll('Z', ''));
 
+            String simLabel = log['simId']?.toString() ?? '-';
+            simsAsync.whenData((sims) {
+              try {
+                final sim = sims.firstWhere((s) => s.id == log['simId']?.toString());
+                simLabel = sim.carrierName;
+              } catch (_) {}
+            });
+
             return DataRow(
               cells: [
                 DataCell(Text(DateFormat('dd MMM, hh:mm a').format(date))),
@@ -278,7 +288,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                     ),
                   ),
                 ),
-                DataCell(Text(log['simId'] ?? '-')),
+                DataCell(Text(simLabel)),
                 DataCell(_buildStatusChip(log['status'])),
               ],
             );
