@@ -61,8 +61,10 @@ class PdfGenerator {
             pw.TableHelper.fromTextArray(
               headers: ['Date', 'Receiver', 'Message', 'SIM', 'Status'],
               data: logs.map((log) {
+                final dateStr = log['createdAt']?.toString() ?? '';
+                final date = DateTime.parse(dateStr.replaceAll('Z', ''));
                 return [
-                  dateFormat.format(DateTime.parse(log['createdAt'])),
+                  DateFormat('dd MMM, hh:mm a').format(date),
                   log['receiverNumber'] ?? '',
                   log['message'] ?? '',
                   log['simId'] ?? '-',

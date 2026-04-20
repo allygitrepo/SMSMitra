@@ -215,9 +215,12 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
             DataColumn(label: Text('Status')),
           ],
           rows: logs.map((log) {
-            final date = DateTime.parse(log['createdAt']);
+            final dateStr = log['createdAt']?.toString() ?? '';
+            // Ignore 'Z' suffix to show exact DB time without timezone conversion
+            final date = DateTime.parse(dateStr.replaceAll('Z', ''));
+            
             return DataRow(cells: [
-              DataCell(Text(DateFormat('dd/MM HH:mm').format(date))),
+              DataCell(Text(DateFormat('dd MMM, hh:mm a').format(date))),
               DataCell(Text(log['receiverNumber'] ?? '')),
               DataCell(Container(
                 constraints: const BoxConstraints(maxWidth: 150),
