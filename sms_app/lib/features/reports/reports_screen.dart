@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:sms_app/features/home/stats_provider.dart';
 import '../../core/utils/pdf_generator.dart';
 import '../../features/reports/reports_provider.dart';
 import '../../features/settings/settings_provider.dart';
@@ -35,11 +36,11 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
             onPressed: state.logs.isEmpty
                 ? null
                 : () => PdfGenerator.generateSmsReport(
-                      logs: state.logs,
-                      stats: state.stats,
-                      startDate: state.startDate,
-                      endDate: state.endDate,
-                    ),
+                    logs: state.logs,
+                    stats: state.stats,
+                    startDate: state.startDate,
+                    endDate: state.endDate,
+                  ),
             tooltip: 'Download PDF',
           ),
           IconButton(
@@ -56,17 +57,21 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
             child: state.isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : state.logs.isEmpty
-                    ? _buildEmptyState()
-                    : _buildLogsTable(state.logs),
+                ? _buildEmptyState()
+                : _buildLogsTable(state.logs),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildFilterBar(BuildContext context, ReportsState state, dynamic settings) {
+  Widget _buildFilterBar(
+    BuildContext context,
+    ReportsState state,
+    dynamic settings,
+  ) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+    final simsAsync = ref.watch(simsProvider);
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -74,89 +79,124 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
       child: Row(
         children: [
           Expanded(
-            child: InkWell(
-              onTap: () async {
-                final range = await showDateRangePicker(
-                  context: context,
-                  firstDate: DateTime(2024),
-                  lastDate: DateTime.now(),
-                  initialDateRange: state.startDate != null && state.endDate != null
-                      ? DateTimeRange(start: state.startDate!, end: state.endDate!)
-                      : null,
-                  builder: (context, child) {
-                    return Theme(
-                      data: theme.copyWith(
-                        colorScheme: theme.colorScheme.copyWith(
-                          primary: Colors.orange,
+            child: SizedBox(
+              height: 45,
+              child: InkWell(
+                onTap: () async {
+                  final range = await showDateRangePicker(
+                    context: context,
+                    firstDate: DateTime(2024),
+                    lastDate: DateTime.now(),
+                    initialDateRange:
+                        state.startDate != null && state.endDate != null
+                        ? DateTimeRange(
+                            start: state.startDate!,
+                            end: state.endDate!,
+                          )
+                        : null,
+                    builder: (context, child) {
+                      return Theme(
+                        data: theme.copyWith(
+                          colorScheme: theme.colorScheme.copyWith(
+                            primary: Colors.orange,
+                          ),
+                        ),
+                        child: child!,
+                      );
+                    },
+                  );
+                  if (range != null) {
+                    ref
+                        .read(reportsProvider.notifier)
+                        .updateDateRange(range.start, range.end);
+                  }
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: theme.dividerColor),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.calendar_today,
+                        size: 16,
+                        color: theme.primaryColor,
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        state.startDate == null
+                            ? 'Date Range'
+                            : '${DateFormat('dd MMM').format(state.startDate!)} - ${DateFormat('dd MMM').format(state.endDate!)}',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: theme.textTheme.bodyMedium?.color,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
-                      child: child!,
-                    );
-                  },
-                );
-                if (range != null) {
-                  ref.read(reportsProvider.notifier).updateDateRange(range.start, range.end);
-                }
-              },
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                decoration: BoxDecoration(
-                  border: Border.all(color: theme.dividerColor),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.calendar_today, size: 16, color: theme.primaryColor),
-                    const SizedBox(width: 10),
-                    Text(
-                      state.startDate == null
-                          ? 'Date Range'
-                          : '${DateFormat('dd MMM').format(state.startDate!)} - ${DateFormat('dd MMM').format(state.endDate!)}',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: theme.textTheme.bodyMedium?.color,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
           ),
           const SizedBox(width: 12),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            decoration: BoxDecoration(
-              border: Border.all(color: theme.dividerColor),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                value: state.simId ?? 'all',
-                dropdownColor: theme.cardColor,
-                icon: Icon(Icons.arrow_drop_down, color: theme.primaryColor),
-                items: [
-                  DropdownMenuItem<String>(
-                    value: 'all',
-                    child: Text('All SIMs', 
-                      style: TextStyle(color: theme.textTheme.bodyMedium?.color)),
+          SizedBox(
+            height: 45,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                border: Border.all(color: theme.dividerColor),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value: state.simId ?? 'all',
+                  isDense: true,
+                  dropdownColor: theme.cardColor,
+                  icon: Icon(Icons.arrow_drop_down, color: theme.primaryColor),
+                  items: [
+                    DropdownMenuItem<String>(
+                      value: 'all',
+                      child: Text(
+                        'All SIMs',
+                        style: TextStyle(
+                          color: theme.textTheme.bodyMedium?.color,
+                        ),
+                      ),
+                    ),
+                    ...settings.simPriority.map((simId) {
+                      String label =
+                          'SIM ${settings.simPriority.indexOf(simId) + 1}';
+
+                      // Try to find the carrier name from detected sims
+                      simsAsync.whenData((sims) {
+                        try {
+                          final sim = sims.firstWhere((s) => s.id == simId);
+                          label = sim.carrierName;
+                        } catch (_) {}
+                      });
+
+                      return DropdownMenuItem<String>(
+                        value: simId.toString(),
+                        child: Text(
+                          label,
+                          style: TextStyle(
+                            color: theme.textTheme.bodyMedium?.color,
+                          ),
+                        ),
+                      );
+                    }),
+                  ],
+                  onChanged: (val) {
+                    ref.read(reportsProvider.notifier).updateSimFilter(val);
+                  },
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: theme.textTheme.bodyMedium?.color,
+                    fontWeight: FontWeight.w500,
                   ),
-                  ...settings.simPriority.map((simId) {
-                    final index = settings.simPriority.indexOf(simId) + 1;
-                    return DropdownMenuItem<String>(
-                      value: simId.toString(),
-                      child: Text('SIM $index', 
-                        style: TextStyle(color: theme.textTheme.bodyMedium?.color)),
-                    );
-                  }),
-                ],
-                onChanged: (val) {
-                  ref.read(reportsProvider.notifier).updateSimFilter(val);
-                },
-                style: TextStyle(
-                  fontSize: 13, 
-                  color: theme.textTheme.bodyMedium?.color,
-                  fontWeight: FontWeight.w500,
                 ),
               ),
             ),
@@ -192,9 +232,15 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
         ),
         child: Column(
           children: [
-            Text(label, style: TextStyle(color: color, fontWeight: FontWeight.bold)),
+            Text(
+              label,
+              style: TextStyle(color: color, fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 4),
-            Text('$count', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            Text(
+              '$count',
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
           ],
         ),
       ),
@@ -218,17 +264,24 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
             final dateStr = log['createdAt']?.toString() ?? '';
             // Ignore 'Z' suffix to show exact DB time without timezone conversion
             final date = DateTime.parse(dateStr.replaceAll('Z', ''));
-            
-            return DataRow(cells: [
-              DataCell(Text(DateFormat('dd MMM, hh:mm a').format(date))),
-              DataCell(Text(log['receiverNumber'] ?? '')),
-              DataCell(Container(
-                constraints: const BoxConstraints(maxWidth: 150),
-                child: Text(log['message'] ?? '', overflow: TextOverflow.ellipsis),
-              )),
-              DataCell(Text(log['simId'] ?? '-')),
-              DataCell(_buildStatusChip(log['status'])),
-            ]);
+
+            return DataRow(
+              cells: [
+                DataCell(Text(DateFormat('dd MMM, hh:mm a').format(date))),
+                DataCell(Text(log['receiverNumber'] ?? '')),
+                DataCell(
+                  Container(
+                    constraints: const BoxConstraints(maxWidth: 150),
+                    child: Text(
+                      log['message'] ?? '',
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ),
+                DataCell(Text(log['simId'] ?? '-')),
+                DataCell(_buildStatusChip(log['status'])),
+              ],
+            );
           }).toList(),
         ),
       ),
@@ -249,7 +302,11 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
       ),
       child: Text(
         status?.toUpperCase() ?? 'UNKNOWN',
-        style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.bold),
+        style: TextStyle(
+          color: color,
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+        ),
       ),
     );
   }
@@ -261,7 +318,10 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
         children: [
           Icon(Icons.notes, size: 64, color: Colors.grey.withOpacity(0.5)),
           const SizedBox(height: 16),
-          const Text('No records found for the selected filters', style: TextStyle(color: Colors.grey)),
+          const Text(
+            'No records found for the selected filters',
+            style: TextStyle(color: Colors.grey),
+          ),
         ],
       ),
     );
