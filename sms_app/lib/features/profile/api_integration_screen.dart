@@ -8,9 +8,7 @@ class ApiIntegrationScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Developer API Guide'),
-      ),
+      appBar: AppBar(title: const Text('Developer API Guide')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -44,7 +42,7 @@ class ApiIntegrationScreen extends StatelessWidget {
               'No API keys required. Your 4-digit Access Code handles the secure routing to your phone.',
             ),
             const SizedBox(height: 32),
-            _buildTryItSection(),
+            // _buildTryItSection(),
           ],
         ),
       ),
@@ -95,13 +93,20 @@ class ApiIntegrationScreen extends StatelessWidget {
                 backgroundColor: Colors.orange,
                 child: Text(
                   number,
-                  style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
               const SizedBox(width: 12),
               Text(
                 title,
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ],
           ),
@@ -137,7 +142,11 @@ class ApiIntegrationScreen extends StatelessWidget {
                       ),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.copy, size: 18, color: Colors.white54),
+                      icon: const Icon(
+                        Icons.copy,
+                        size: 18,
+                        color: Colors.white54,
+                      ),
                       onPressed: () {
                         Clipboard.setData(ClipboardData(text: code));
                       },

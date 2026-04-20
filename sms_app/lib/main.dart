@@ -20,10 +20,10 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
       projectId: "sms-mitra",
     ),
   );
-  
+
   // MUST initialize storage in background to access API tokens
   await StorageService.init();
-  
+
   debugPrint("FCM Background Message Received: ${message.data}");
 
   if (message.data['type'] == 'SEND_SMS') {
@@ -77,7 +77,7 @@ void main() async {
       final smsService = SmsService();
       final smsApi = SmsApiService();
       final logId = message.data['logId'];
-      
+
       try {
         final success = await smsService.sendSms(
           number: message.data['phoneNumber'],
@@ -90,13 +90,17 @@ void main() async {
           simId: message.data['simId'],
         );
       } catch (e) {
-        await smsApi.updateSmsStatus(logId: logId, status: 'failed', errorMessage: e.toString());
+        await smsApi.updateSmsStatus(
+          logId: logId,
+          status: 'failed',
+          errorMessage: e.toString(),
+        );
       }
     } else if (message.data['type'] == 'STATS_UPDATE') {
       // Refresh stats on dashboard
       debugPrint("FCM Stats Update Triggered");
-      // We can use the global provider container if needed, but since we are in main, 
-      // we usually rely on the widgets to listen. 
+      // We can use the global provider container if needed, but since we are in main,
+      // we usually rely on the widgets to listen.
       // However, for immediate update, we can't easily access the container here without a global key or similar.
       // Better: The dashboard itself listens to FCM or we use a global event bus.
       // Since we use Riverpod, we can use ProviderContainer if we initialize it.
