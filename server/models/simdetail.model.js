@@ -3,12 +3,12 @@ const { sequelize } = require('../config/db');
 
 const SimDetail = sequelize.define('SimDetail', {
   id: {
-    type: DataTypes.UUID,
-    defaultValue: DataTypes.UUIDV4,
+    type: DataTypes.INTEGER,
+    autoIncrement: true,
     primaryKey: true,
   },
   userId: {
-    type: DataTypes.UUID,
+    type: DataTypes.INTEGER,
     allowNull: false,
   },
   simId: {
@@ -32,6 +32,10 @@ const SimDetail = sequelize.define('SimDetail', {
   priority: {
     type: DataTypes.INTEGER,
     defaultValue: 1,
+  },
+  currentUsage: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0,
   },
   isActive: {
     type: DataTypes.BOOLEAN,
