@@ -22,7 +22,7 @@ class SettingsNotifier extends StateNotifier<SettingsModel> {
 
   SettingsNotifier(this.ref) : super(StorageService.getSettings());
 
-  Future<void> _syncWithServer() async {
+  Future<void> syncWithServer() async {
     final user = StorageService.getUser();
     if (user == null) return;
 
@@ -95,7 +95,7 @@ class SettingsNotifier extends StateNotifier<SettingsModel> {
 
   Future<void> _saveAndSync() async {
     await StorageService.saveSettings(state);
-    await _syncWithServer();
+    await syncWithServer();
   }
 
   /// Updates the priority order of SIMs.

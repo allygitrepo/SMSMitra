@@ -167,12 +167,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             if (_isEditing)
               GradientButton(
                 text: settings.simPriority.isEmpty ? 'Save & Continue' : 'Update Settings',
-                onPressed: () {
+                onPressed: () async {
                   if (settings.simPriority.isEmpty && _availableSims.isNotEmpty) {
                     MessageHelper.showWarning(context, 'Please select at least one SIM card');
                     return;
                   }
                   
+                  await notifier.syncWithServer();
                   setState(() => _isEditing = false);
                   MessageHelper.showSuccess(context, 'Settings updated successfully!');
                   
