@@ -5,6 +5,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_provider.dart';
 import 'core/routes/app_router.dart';
+import 'data/cache/cache_service.dart';
 import 'data/services/storage_service.dart';
 import 'data/services/sms_service.dart';
 import 'data/services/sms_api_service.dart';
@@ -22,7 +23,7 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   );
 
   // MUST initialize storage in background to access API tokens
-  await StorageService.init();
+  await CacheService().init();
 
   debugPrint("FCM Background Message Received: ${message.data}");
 
@@ -108,7 +109,7 @@ void main() async {
   });
 
   // Initialize local storage (Hive)
-  await StorageService.init();
+  await CacheService().init();
 
   // Request Notification Permissions for FCM triggers
   FirebaseMessaging messaging = FirebaseMessaging.instance;

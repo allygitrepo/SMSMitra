@@ -1,35 +1,22 @@
-import 'package:hive_flutter/hive_flutter.dart';
+import '../cache/cache_service.dart';
 import '../models/user_model.dart';
 import '../models/settings_model.dart';
 
-/// A service to handle all local storage operations using Hive.
+/// A service to handle all local storage operations, now powered by CacheService.
 class StorageService {
-  static const String userBoxName = 'user_box';
-  static const String settingsBoxName = 'settings_box';
+  static final _cache = CacheService();
 
-  /// Initializes Hive and opens necessary boxes.
-  static Future<void> init() async {
-    await Hive.initFlutter();
-
-    // Register Adapters
-    Hive.registerAdapter(UserModelAdapter());
-    Hive.registerAdapter(SettingsModelAdapter());
-
-    // Open Boxes
-    await Hive.openBox<UserModel>(userBoxName);
-    await Hive.openBox<SettingsModel>(settingsBoxName);
-  }
+  /// Legacy init - now handled by CacheService().init()
+  static Future<void> init() async {}
 
   /// Saves the user data.
   static Future<void> saveUser(UserModel user) async {
-    final box = Hive.box<UserModel>(userBoxName);
-    await box.put('current_user', user);
+    await _cache.setUser(user);
   }
 
   /// Retrieves the saved user data.
   static UserModel? getUser() {
-    final box = Hive.box<UserModel>(userBoxName);
-    return box.get('current_user');
+    return _cache.getUser();
   }
 
   /// Checks if the user is registered.
@@ -50,8 +37,7 @@ class StorageService {
 
   /// Saves the app settings.
   static Future<void> saveSettings(SettingsModel settings) async {
-    final box = Hive.box<SettingsModel>(settingsBoxName);
-    await box.put('app_settings', settings);
+    await _cache.setSettings(settings);
   }
 
   /// Checks if the SIM configuration is already setup.
@@ -61,7 +47,6 @@ class StorageService {
 
   /// Retrieves the saved app settings.
   static SettingsModel getSettings() {
-    final box = Hive.box<SettingsModel>(settingsBoxName);
-    return box.get('app_settings') ?? SettingsModel();
+    return _cache.getSettings();
   }
 }

@@ -12,6 +12,7 @@ import 'package:sms_app/data/services/storage_service.dart';
 import '../../shared/widgets/custom_text_field.dart';
 import '../../shared/widgets/gradient_button.dart';
 
+import '../../data/providers/connectivity_provider.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/models/sim_model.dart';
@@ -32,18 +33,32 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   final _messageController = TextEditingController();
   final _smsService = SmsService();
   bool _isSending = false;
+  bool _isSyncing = false;
   StreamSubscription<RemoteMessage>? _fcmSubscription;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _refreshData());
     // Listen for real-time stats updates from server
     _fcmSubscription = FirebaseMessaging.onMessage.listen((message) {
       if (message.data['type'] == 'STATS_UPDATE') {
         debugPrint("HomeScreen: Received real-time stats update trigger");
-        ref.read(smsStatsProvider.notifier).fetchStats();
+        _refreshData();
       }
     });
+  }
+
+  Future<void> _refreshData() async {
+    if (!mounted) return;
+    setState(() => _isSyncing = true);
+    try {
+      await ref.read(smsStatsProvider.notifier).fetchStats();
+      // ignore: unused_result
+      await ref.refresh(simsProvider.future);
+    } finally {
+      if (mounted) setState(() => _isSyncing = false);
+    }
   }
 
   @override
@@ -318,6 +333,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       }
     });
 
+    final connectivity = ref.watch(connectivityProvider);
+    final isOffline = connectivity == ConnectivityStatus.offline;
+
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) async {
@@ -329,10 +347,42 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       },
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Dashboard'),
+          title: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Dashboard'),
+              if (_isSyncing) ...[
+                const SizedBox(width: 8),
+                const SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.orange),
+                ),
+              ],
+            ],
+          ),
           centerTitle: true,
           backgroundColor: Colors.transparent,
           elevation: 0,
+          actions: [
+            if (isOffline)
+              Container(
+                margin: const EdgeInsets.only(right: 16),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.red.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.red.withOpacity(0.5)),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.cloud_off, size: 14, color: Colors.red),
+                    SizedBox(width: 4),
+                    Text('Offline', style: TextStyle(color: Colors.red, fontSize: 12)),
+                  ],
+                ),
+              ),
+          ],
         ),
         body: RefreshIndicator(
           onRefresh: () async {
