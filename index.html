@@ -257,6 +257,7 @@
         .btn-outline {
             background: transparent;
             border: 1px solid var(--border);
+            color: var(--text-main);
         }
 
         .btn-outline:hover {
@@ -596,7 +597,7 @@ print(response.json())</code>
 
             try {
                 // Using the production API URL instead of localhost
-                const response = await fetch('http://silverapi.allysoftsolutions.com/smsmitra/v1/sms/trigger', {
+                const response = await fetch('http://192.168.1.9:3000/smsmitra/v1/sms/trigger', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
