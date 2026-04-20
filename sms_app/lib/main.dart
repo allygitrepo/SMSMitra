@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:sms_app/data/cache/cache_service.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_provider.dart';
 import 'core/routes/app_router.dart';
@@ -23,7 +24,7 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
   // MUST initialize storage in background to access API tokens
   await StorageService.init();
-  
+
   await StorageService.addAppLog(
     "FCM Background Message Received",
     details: message.data.toString(),
@@ -51,8 +52,10 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
       );
       await StorageService.addAppLog(
         "SMS Sent (Background)",
-        details: "To: ${message.data['phoneNumber']}, SIM: ${message.data['simId']}",
+        details:
+            "To: ${message.data['phoneNumber']}, SIM: ${message.data['simId']}",
       );
+      await CacheService().incrementSentStats();
     } catch (e) {
       await smsApi.updateSmsStatus(
         logId: logId,
@@ -112,6 +115,7 @@ void main() async {
           level: success ? 'info' : 'warning',
           details: "Success: $success, To: ${message.data['phoneNumber']}",
         );
+        if (success) await CacheService().incrementSentStats();
       } catch (e) {
         await smsApi.updateSmsStatus(
           logId: logId,

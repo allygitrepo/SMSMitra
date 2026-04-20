@@ -399,6 +399,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 // const SizedBox(height: 24),
                 _buildSectionHeader('Overview'),
                 const SizedBox(height: 12),
+                _buildQuotaWarning(sentToday, activeSimCount * perSimLimit),
+                const SizedBox(height: 12),
                 Row(
                   children: [
                     Expanded(
@@ -415,7 +417,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         'Remaining',
                         remainingText,
                         Icons.hourglass_empty,
-                        Colors.blue,
+                        sentToday >= (activeSimCount * perSimLimit) && perSimLimit != -1 ? Colors.red : Colors.blue,
                       ),
                     ),
                   ],
@@ -502,6 +504,43 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
+  Widget _buildQuotaWarning(int sent, int limit) {
+    if (limit == -1 || sent < limit) return const SizedBox.shrink();
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.red.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.red.withOpacity(0.3)),
+      ),
+      child: const Row(
+        children: [
+          Icon(Icons.warning_amber_rounded, color: Colors.red),
+          SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Daily Quota Reached!',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.red,
+                  ),
+                ),
+                Text(
+                  'Your gateway will not process new SMS until tomorrow.',
+                  style: TextStyle(fontSize: 12, color: Colors.red),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildPulseIndicator(Color color) {
     return Container(
       width: 12,
@@ -547,9 +586,37 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             value,
             style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
+          if (label == 'Remaining' && value != '∞') ...[
+            const SizedBox(height: 8),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: _calculateProgress(value),
+                backgroundColor: color.withOpacity(0.1),
+                valueColor: AlwaysStoppedAnimation<Color>(color),
+                minHeight: 4,
+              ),
+            ),
+          ],
         ],
       ),
     );
+  }
+
+  double _calculateProgress(String remainingText) {
+    try {
+      final settings = ref.read(settingsProvider);
+      final stats = ref.read(smsStatsProvider);
+      final int sentToday = stats['sentToday'] ?? 0;
+      final int perSimLimit = settings.dailySmsLimit;
+      final int activeSimCount = settings.simPriority.length;
+      final int totalLimit = activeSimCount * perSimLimit;
+      
+      if (totalLimit <= 0) return 0.0;
+      return (sentToday / totalLimit).clamp(0.0, 1.0);
+    } catch (e) {
+      return 0.0;
+    }
   }
 
   Widget _buildQuickSendForm() {

@@ -84,6 +84,19 @@ class CacheService {
     return Map<String, dynamic>.from(cached.data);
   }
 
+  Future<void> incrementSentStats() async {
+    final box = Hive.box<CachedDataModel>(CacheBoxes.dashboard);
+    final cached = box.get(CacheKeys.dashboardStats);
+    if (cached != null) {
+      final data = Map<String, dynamic>.from(cached.data);
+      data['sentToday'] = (data['sentToday'] ?? 0) + 1;
+      await box.put(
+        CacheKeys.dashboardStats,
+        CachedDataModel(data: data, timestamp: cached.timestamp),
+      );
+    }
+  }
+
   // --- SMS History Cache ---
   Future<void> cacheSmsLogs(List<SmsLogModel> logs) async {
     final box = Hive.box<SmsLogModel>(CacheBoxes.history);
