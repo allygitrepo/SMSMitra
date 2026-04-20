@@ -1,15 +1,18 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SMSMitra | Professional SMS Gateway</title>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
     <style>
         :root {
-            --primary: #FF8C00;
-            --primary-light: #FFB347;
-            --secondary: #ea580c;
+            --primary: #fbbf24;
+            --primary-light: #fcd34d;
+            --secondary: #d97706;
             --bg: #030712;
             --surface: #111827;
             --card: rgba(31, 41, 55, 0.6);
@@ -27,7 +30,7 @@
         body {
             font-family: 'Outfit', sans-serif;
             background-color: var(--bg);
-            background-image: 
+            background-image:
                 radial-gradient(circle at 0% 0%, rgba(245, 158, 11, 0.08) 0%, transparent 40%),
                 radial-gradient(circle at 100% 100%, rgba(234, 88, 12, 0.08) 0%, transparent 40%);
             color: var(--text-main);
@@ -145,8 +148,13 @@
         }
 
         @media (max-width: 968px) {
-            .grid { grid-template-columns: 1fr; }
-            .hero h1 { font-size: 2.8rem; }
+            .grid {
+                grid-template-columns: 1fr;
+            }
+
+            .hero h1 {
+                font-size: 2.8rem;
+            }
         }
 
         /* --- Testing Card --- */
@@ -201,7 +209,8 @@
             letter-spacing: 1px;
         }
 
-        input, textarea {
+        input,
+        textarea {
             width: 100%;
             background: rgba(3, 7, 18, 0.5);
             border: 1px solid var(--border);
@@ -214,7 +223,8 @@
             font-size: 1rem;
         }
 
-        input:focus, textarea:focus {
+        input:focus,
+        textarea:focus {
             outline: none;
             border-color: var(--primary);
             background: rgba(3, 7, 18, 0.8);
@@ -227,8 +237,8 @@
             justify-content: center;
             gap: 10px;
             width: 100%;
-            background: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%);
-            color: white;
+            background: linear-gradient(135deg, #fbbf24 0%, #d97706 100%);
+            color: #030712;
             border: none;
             border-radius: 12px;
             padding: 16px;
@@ -241,7 +251,7 @@
 
         .btn:hover {
             transform: translateY(-2px);
-            box-shadow: 0 20px 25px -5px rgba(234, 88, 12, 0.3);
+            box-shadow: 0 20px 25px -5px rgba(217, 119, 6, 0.3);
         }
 
         .btn-outline {
@@ -338,8 +348,15 @@
         /* --- Animations --- */
 
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         /* --- Loader & Toasts --- */
@@ -348,13 +365,17 @@
             display: none;
             width: 20px;
             height: 20px;
-            border: 3px solid rgba(255,255,255,0.2);
+            border: 3px solid rgba(255, 255, 255, 0.2);
             border-radius: 50%;
             border-top-color: #fff;
             animation: spin 1s linear infinite;
         }
 
-        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
 
         .toast-container {
             position: fixed;
@@ -380,15 +401,25 @@
         }
 
         @keyframes slideIn {
-            from { transform: translateX(120%); }
-            to { transform: translateX(0); }
+            from {
+                transform: translateX(120%);
+            }
+
+            to {
+                transform: translateX(0);
+            }
         }
 
-        .success { border-left-color: #10b981; }
-        .error { border-left-color: #ef4444; }
+        .success {
+            border-left-color: #10b981;
+        }
 
+        .error {
+            border-left-color: #ef4444;
+        }
     </style>
 </head>
+
 <body>
 
     <nav class="navbar">
@@ -405,17 +436,19 @@
     <header class="hero">
         <div class="container">
             <h1>Transform your phone into a <span>Smart SMS Gateway</span></h1>
-            <p>Send programmatic SMS directly from your own mobile number using our high-performance remote API. No expensive bulk SMS providers needed.</p>
+            <p>Send programmatic SMS directly from your own mobile number using our high-performance remote API. No
+                expensive bulk SMS providers needed.</p>
             <div class="hero-btns">
                 <a href="#test" class="btn" style="width: auto; padding: 16px 32px;">Try Tester Now</a>
-                <a href="#integration" class="btn btn-outline" style="width: auto; padding: 16px 32px;">View API Docs</a>
+                <a href="#integration" class="btn btn-outline" style="width: auto; padding: 16px 32px;">View API
+                    Docs</a>
             </div>
         </div>
     </header>
 
     <main class="container" id="main">
         <div class="grid">
-            
+
             <!-- PART 1: TESTING -->
             <section id="test">
                 <div class="card">
@@ -426,7 +459,8 @@
 
                     <div class="input-group">
                         <label for="deviceCode">App Access Code</label>
-                        <input type="text" id="deviceCode" placeholder="Enter 4-character code (e.g. X8Y2)" maxlength="4">
+                        <input type="text" id="deviceCode" placeholder="Enter 4-character code (e.g. X8Y2)"
+                            maxlength="4">
                     </div>
 
                     <div class="input-group">
@@ -443,7 +477,7 @@
                         <span id="btnText">Trigger SMS Gateway</span>
                         <div id="btnLoader" class="loader"></div>
                     </button>
-                    
+
                     <p style="margin-top: 20px; font-size: 0.8rem; color: var(--text-muted);">
                         * Ensure the SMSMitra app is active on your device and connected to the internet.
                     </p>
@@ -459,7 +493,9 @@
 
                 <div class="doc-step">
                     <h4><span>1</span> Setup the Mobile App</h4>
-                    <p>Download SMSMitra APK on your Android device. Register and get your unique 4-character <strong>Access Code</strong> from the profile section.</p>
+                    <p>Download SMSMitra APK on your Android device. Register and get your unique 4-character
+                        <strong>Access Code</strong> from the profile section.
+                    </p>
                 </div>
 
                 <div class="doc-step">
@@ -476,7 +512,7 @@
                 <div class="doc-step">
                     <h4><span>3</span> Code Examples</h4>
                     <p>Choose your preferred language to trigger the gateway.</p>
-                    
+
                     <div class="code-block">
                         <div class="code-header">
                             <span class="code-lang">cURL / Bash</span>
@@ -514,7 +550,9 @@ print(response.json())</code>
     </main>
 
     <footer style="padding: 60px 0; border-top: var(--border); text-align: center; margin-top: 80px;">
-        <p style="color: var(--text-muted); font-size: 0.9rem;">&copy; 2026 SMSMitra. Built for reliability and performance.</p>
+        <p style="color: var(--text-muted); font-size: 0.9rem;">&copy; 2026 SMSMitra. Powered by <a href="#"
+                target="_blank"
+                style="color: var(--primary); text-decoration: none; font-weight: 600;">Allysoftsolutions</a></p>
     </footer>
 
     <script>
@@ -522,10 +560,10 @@ print(response.json())</code>
             const container = document.getElementById('toastContainer');
             const toast = document.createElement('div');
             toast.className = `toast ${type}`;
-            
+
             let icon = 'ℹ️';
-            if(type === 'success') icon = '✅';
-            if(type === 'error') icon = '❌';
+            if (type === 'success') icon = '✅';
+            if (type === 'error') icon = '❌';
 
             toast.innerHTML = `<span>${icon}</span> <span>${message}</span>`;
             container.appendChild(toast);
@@ -599,4 +637,5 @@ print(response.json())</code>
     </script>
 
 </body>
+
 </html>
