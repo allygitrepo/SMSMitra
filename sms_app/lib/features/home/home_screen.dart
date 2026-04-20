@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -11,6 +12,7 @@ import 'package:sms_app/data/services/storage_service.dart';
 import '../../shared/widgets/custom_text_field.dart';
 import '../../shared/widgets/gradient_button.dart';
 
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/models/sim_model.dart';
 import '../settings/settings_provider.dart';
@@ -30,6 +32,27 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   final _messageController = TextEditingController();
   final _smsService = SmsService();
   bool _isSending = false;
+  StreamSubscription<RemoteMessage>? _fcmSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    // Listen for real-time stats updates from server
+    _fcmSubscription = FirebaseMessaging.onMessage.listen((message) {
+      if (message.data['type'] == 'STATS_UPDATE') {
+        debugPrint("HomeScreen: Received real-time stats update trigger");
+        ref.read(smsStatsProvider.notifier).fetchStats();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _fcmSubscription?.cancel();
+    _phoneController.dispose();
+    _messageController.dispose();
+    super.dispose();
+  }
 
   Future<void> _handleSend() async {
     if (_formKey.currentState!.validate()) {

@@ -4,6 +4,26 @@ const SmsLog = require('../models/smslog.model');
 const SimDetail = require('../models/simdetail.model');
 const admin = require('../config/firebase');
 
+const notifyStatsUpdate = async (userId) => {
+  try {
+    const user = await User.findByPk(userId);
+    if (user && user.fcmToken) {
+      const payload = {
+        token: user.fcmToken,
+        data: {
+          type: 'STATS_UPDATE'
+        },
+        android: {
+          priority: 'high'
+        }
+      };
+      await admin.messaging().send(payload);
+    }
+  } catch (error) {
+    console.error('Notify Stats Error:', error);
+  }
+};
+
 exports.sendSmsTrigger = async (req, res) => {
   try {
     const { deviceCode, phoneNumber, message } = req.body;
@@ -63,6 +83,9 @@ exports.sendSmsTrigger = async (req, res) => {
     };
 
     await admin.messaging().send(payload);
+
+    // Trigger UI update on app
+    notifyStatsUpdate(user.id);
 
     // Increment usage
     if (selectedSim) {
@@ -207,6 +230,10 @@ exports.updateSmsStatus = async (req, res) => {
     log.errorMessage = errorMessage;
     log.simId = simId;
     await log.save();
+
+    // Trigger UI update on app
+    notifyStatsUpdate(log.userId);
+
     res.json({ message: 'Status updated' });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -223,6 +250,10 @@ exports.createManualLog = async (req, res) => {
       simId,
       status
     });
+
+    // Trigger UI update on app
+    notifyStatsUpdate(userId);
+
     res.status(201).json(log);
   } catch (error) {
     res.status(500).json({ message: error.message });

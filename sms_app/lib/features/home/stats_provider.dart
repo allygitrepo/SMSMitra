@@ -14,23 +14,13 @@ final simsProvider = FutureProvider<List<SimModel>>((ref) async {
 
 class SmsStatsNotifier extends StateNotifier<Map<String, int>> {
   final _apiService = SmsApiService();
-  Timer? _timer;
 
   SmsStatsNotifier() : super({'sentToday': 0, 'failedToday': 0}) {
     fetchStats();
-    _startPolling();
-  }
-
-  void _startPolling() {
-    _timer?.cancel();
-    _timer = Timer.periodic(const Duration(seconds: 15), (timer) {
-      fetchStats();
-    });
   }
 
   @override
   void dispose() {
-    _timer?.cancel();
     super.dispose();
   }
 

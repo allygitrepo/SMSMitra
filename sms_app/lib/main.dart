@@ -92,6 +92,14 @@ void main() async {
       } catch (e) {
         await smsApi.updateSmsStatus(logId: logId, status: 'failed', errorMessage: e.toString());
       }
+    } else if (message.data['type'] == 'STATS_UPDATE') {
+      // Refresh stats on dashboard
+      debugPrint("FCM Stats Update Triggered");
+      // We can use the global provider container if needed, but since we are in main, 
+      // we usually rely on the widgets to listen. 
+      // However, for immediate update, we can't easily access the container here without a global key or similar.
+      // Better: The dashboard itself listens to FCM or we use a global event bus.
+      // Since we use Riverpod, we can use ProviderContainer if we initialize it.
     }
   });
 
