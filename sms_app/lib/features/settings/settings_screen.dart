@@ -17,8 +17,10 @@ class SettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+  final _formKey = GlobalKey<FormState>();
   List<SimModel> _availableSims = [];
   bool _isDetecting = true;
+  bool _isEditing = false;
   late TextEditingController _limitController;
 
   @override
@@ -26,6 +28,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     super.initState();
     _limitController = TextEditingController();
     _initDetection();
+    
+    // Initial check for editing mode
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final settings = ref.read(settingsProvider);
+      if (settings.simPriority.isEmpty) {
+        setState(() => _isEditing = true);
+      }
+    });
   }
 
   @override
@@ -90,7 +100,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Setup & Settings'),
+        title: Text(_isEditing ? 'Edit Settings' : 'App Settings'),
         actions: [
           IconButton(
             icon: Icon(
@@ -110,33 +120,69 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildSectionHeader('SIM Configuration'),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _buildSectionHeader('SIM Configuration'),
+                if (!_isEditing && settings.simPriority.isNotEmpty)
+                  TextButton.icon(
+                    onPressed: () => setState(() => _isEditing = true),
+                    icon: const Icon(Icons.edit, size: 18),
+                    label: const Text('Edit'),
+                  ),
+              ],
+            ),
             const SizedBox(height: 12),
             if (_isDetecting)
               const Center(child: CircularProgressIndicator())
             else if (_availableSims.isEmpty)
               _buildErrorCard('No SIM cards found. Please check permissions.')
             else
-              ..._availableSims.map((sim) => _buildSimItem(sim, settings, notifier)),
+              IgnorePointer(
+                ignoring: !_isEditing,
+                child: Opacity(
+                  opacity: _isEditing ? 1.0 : 0.7,
+                  child: Column(
+                    children: _availableSims
+                        .map((sim) => _buildSimItem(sim, settings, notifier))
+                        .toList(),
+                  ),
+                ),
+              ),
             
             if (settings.simPriority.length > 1) ...[
               const SizedBox(height: 24),
               _buildSectionHeader('SIM Priority (Drag to reorder)'),
               const SizedBox(height: 12),
-              _buildPriorityList(settings, notifier),
+              IgnorePointer(
+                ignoring: !_isEditing,
+                child: Opacity(
+                  opacity: _isEditing ? 1.0 : 0.7,
+                  child: _buildPriorityList(settings, notifier),
+                ),
+              ),
             ],
             
             const SizedBox(height: 48),
-            GradientButton(
-              text: 'Save & Continue',
-              onPressed: () {
-                if (settings.simPriority.isEmpty && _availableSims.isNotEmpty) {
-                  MessageHelper.showWarning(context, 'Please select at least one SIM card');
-                  return;
-                }
-                context.go(AppRouter.home);
-              },
-            ),
+            if (_isEditing)
+              GradientButton(
+                text: settings.simPriority.isEmpty ? 'Save & Continue' : 'Update Settings',
+                onPressed: () {
+                  if (settings.simPriority.isEmpty && _availableSims.isNotEmpty) {
+                    MessageHelper.showWarning(context, 'Please select at least one SIM card');
+                    return;
+                  }
+                  
+                  setState(() => _isEditing = false);
+                  MessageHelper.showSuccess(context, 'Settings updated successfully!');
+                  
+                  // If it's the first time, navigate to dashboard
+                  // Check if we are currently in setup flow
+                  if (GoRouterState.of(context).uri.toString() == AppRouter.settings) {
+                     context.go(AppRouter.home);
+                  }
+                },
+              ),
           ],
         ),
       ),
@@ -191,6 +237,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           activeColor: Colors.orange,
           onChanged: (val) {
             notifier.toggleSim(sim.id, val == true);
+            MessageHelper.showSuccess(context, val == true ? '${sim.carrierName} Enabled' : '${sim.carrierName} Disabled');
           },
           secondary: Icon(
             Icons.sim_card,
@@ -224,6 +271,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       final limit = int.tryParse(val);
                       if (limit != null && limit >= -1) {
                         notifier.updateLimit(limit);
+                        // Debounce or only show on significant change? 
+                        // For now just show success
                       } else if (limit != null && limit < -1) {
                         _limitController.text = '-1';
                         notifier.updateLimit(-1);
@@ -252,7 +301,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       ),
                     ],
                     onChanged: (val) {
-                      if (val != null) notifier.updateLimitPeriod(val);
+                      if (val != null) {
+                        notifier.updateLimitPeriod(val);
+                        MessageHelper.showSuccess(context, 'Limit period updated to $val');
+                      }
                     },
                   ),
                 ),
@@ -280,6 +332,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           final item = items.removeAt(oldIndex);
           items.insert(newIndex, item);
           notifier.updatePriority(items);
+          MessageHelper.showSuccess(context, 'SIM priority updated');
         },
         children: settings.simPriority
             .where((simId) => _availableSims.any((s) => s.id == simId))
