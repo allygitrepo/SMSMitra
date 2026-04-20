@@ -3,12 +3,14 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../models/sim_model.dart';
+import 'storage_service.dart';
 
 /// A service to handle SIM card detection and permission checks using mobile_number package.
 class SimService {
   /// Requests permission to read phone state and numbers.
   Future<bool> requestPermissions() async {
     if (!Platform.isAndroid) {
+      await StorageService.addAppLog("SIM detection failed: Only Android is supported", level: 'warning');
       debugPrint('SimService: SIM detection is only supported on Android.');
       return false;
     }
@@ -30,6 +32,7 @@ class SimService {
     }
 
     debugPrint('SimService: Permission.phone status: $status');
+    await StorageService.addAppLog("Phone Permissions checked: ${status.name}");
     
     return status.isGranted;
   }
@@ -44,6 +47,7 @@ class SimService {
       debugPrint('SimService: Received ${result?.length ?? 0} SIMs from native.');
 
       if (result == null || result.isEmpty) {
+        await StorageService.addAppLog("No SIM cards detected by native channel", level: 'warning');
         debugPrint('SimService: No SIM cards found via native channel.');
         return [];
       }
@@ -59,12 +63,15 @@ class SimService {
         );
       }).toList();
       
+      await StorageService.addAppLog("SIMs Detected: ${mappedSims.length}", details: mappedSims.map((s) => s.carrierName).join(', '));
       debugPrint('SimService: Successfully mapped ${mappedSims.length} SIMs.');
       return mappedSims;
     } on PlatformException catch (e) {
+      await StorageService.addAppLog("SIM Detection PlatformException: ${e.code}", level: 'error', details: e.message);
       debugPrint('SimService: PlatformException in getAvailableSims: ${e.code} - ${e.message}');
       return [];
     } catch (e) {
+      await StorageService.addAppLog("SIM Detection Error", level: 'error', details: e.toString());
       debugPrint('SimService: Error in getAvailableSims: $e');
       return [];
     }

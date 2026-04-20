@@ -285,7 +285,7 @@ class _SplashScreenState extends State<SplashScreen>
                       child: child,
                     ),
                     child: Image.asset(
-                      'assets/SMS _mitra .png',
+                      'assets/sms.png',
                       width: 200, // Larger size for the logo
                       height: 200,
                       fit: BoxFit.contain,

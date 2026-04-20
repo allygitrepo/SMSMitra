@@ -14,4 +14,5 @@ class CacheBoxes {
   static const String history = 'history_box';
   static const String queue = 'queue_box';
   static const String sims = 'sims_box';
+  static const String appLogs = 'app_logs_box';
 }

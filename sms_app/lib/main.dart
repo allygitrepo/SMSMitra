@@ -5,7 +5,6 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_provider.dart';
 import 'core/routes/app_router.dart';
-import 'data/cache/cache_service.dart';
 import 'data/services/storage_service.dart';
 import 'data/services/sms_service.dart';
 import 'data/services/sms_api_service.dart';
@@ -13,61 +12,59 @@ import 'data/services/sms_api_service.dart';
 // Background message handler
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  try {
-    debugPrint("FCM Background: Initializing...");
-    await Firebase.initializeApp(
-      options: const FirebaseOptions(
-        apiKey: "AIzaSyA1jTuHyRdi0WUVYQ7i8QKwQYORNcWXG7Y",
-        appId: "1:173486311571:web:301a0f7587ec31e67d2566",
-        messagingSenderId: "173486311571",
-        projectId: "sms-mitra",
-      ),
-    );
+  await Firebase.initializeApp(
+    options: const FirebaseOptions(
+      apiKey: "AIzaSyA1jTuHyRdi0WUVYQ7i8QKwQYORNcWXG7Y",
+      appId: "1:173486311571:web:301a0f7587ec31e67d2566",
+      messagingSenderId: "173486311571",
+      projectId: "sms-mitra",
+    ),
+  );
 
-    // MUST initialize storage in background to access API tokens
-    await CacheService().init();
+  // MUST initialize storage in background to access API tokens
+  await StorageService.init();
+  
+  await StorageService.addAppLog(
+    "FCM Background Message Received",
+    details: message.data.toString(),
+  );
 
-    debugPrint("FCM Background Message Received: ${message.data}");
+  debugPrint("FCM Background Message Received: ${message.data}");
 
-    if (message.data['type'] == 'SEND_SMS') {
-      final smsService = SmsService();
-      final smsApi = SmsApiService();
-      final logId = message.data['logId'];
+  if (message.data['type'] == 'SEND_SMS') {
+    final smsService = SmsService();
+    final smsApi = SmsApiService();
+    final logId = message.data['logId'];
 
-      try {
-        final success = await smsService.sendSms(
-          number: message.data['phoneNumber'],
-          message: message.data['message'],
-          simId: message.data['simId'],
-        );
-
-        // Update status back to server
-        await smsApi.updateSmsStatus(
-          logId: logId,
-          status: success ? 'sent' : 'failed',
-          simId: message.data['simId'],
-        );
-        debugPrint("FCM Background: SMS process completed. Success: $success");
-      } catch (e) {
-        debugPrint("FCM Background Error in processing: $e");
-        await smsApi.updateSmsStatus(
-          logId: logId,
-          status: 'failed',
-          errorMessage: "Process Error: $e",
-        );
-      }
-    }
-  } catch (e) {
-    debugPrint("FCM Background FATAL Error: $e");
-    // We can't update status if we can't initialize, but we can try
     try {
-      final smsApi = SmsApiService();
-      await smsApi.updateSmsStatus(
-        logId: message.data['logId'] ?? 'unknown',
-        status: 'failed',
-        errorMessage: "Initialization Error: $e",
+      await smsService.sendSms(
+        number: message.data['phoneNumber'],
+        message: message.data['message'],
+        simId: message.data['simId'], // Use the server-selected SIM
       );
-    } catch (_) {}
+
+      // Update status back to server
+      await smsApi.updateSmsStatus(
+        logId: logId,
+        status: 'sent',
+        simId: message.data['simId'],
+      );
+      await StorageService.addAppLog(
+        "SMS Sent (Background)",
+        details: "To: ${message.data['phoneNumber']}, SIM: ${message.data['simId']}",
+      );
+    } catch (e) {
+      await smsApi.updateSmsStatus(
+        logId: logId,
+        status: 'failed',
+        errorMessage: e.toString(),
+      );
+      await StorageService.addAppLog(
+        "SMS Failed (Background)",
+        level: 'error',
+        details: "Error: $e",
+      );
+    }
   }
 }
 
@@ -89,6 +86,10 @@ void main() async {
 
   // Handle messages when app is in FOREGROUND
   FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
+    await StorageService.addAppLog(
+      "FCM Foreground Message Received",
+      details: message.data.toString(),
+    );
     debugPrint("FCM Foreground Message Received: ${message.data}");
     if (message.data['type'] == 'SEND_SMS') {
       final smsService = SmsService();
@@ -106,11 +107,21 @@ void main() async {
           status: success ? 'sent' : 'failed',
           simId: message.data['simId'],
         );
+        await StorageService.addAppLog(
+          "SMS Result (Foreground)",
+          level: success ? 'info' : 'warning',
+          details: "Success: $success, To: ${message.data['phoneNumber']}",
+        );
       } catch (e) {
         await smsApi.updateSmsStatus(
           logId: logId,
           status: 'failed',
           errorMessage: e.toString(),
+        );
+        await StorageService.addAppLog(
+          "SMS Error (Foreground)",
+          level: 'error',
+          details: e.toString(),
         );
       }
     } else if (message.data['type'] == 'STATS_UPDATE') {
@@ -125,7 +136,8 @@ void main() async {
   });
 
   // Initialize local storage (Hive)
-  await CacheService().init();
+  await StorageService.init();
+  await StorageService.addAppLog("Application Started");
 
   // Request Notification Permissions for FCM triggers
   FirebaseMessaging messaging = FirebaseMessaging.instance;

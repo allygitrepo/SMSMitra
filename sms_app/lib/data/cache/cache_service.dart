@@ -1,4 +1,5 @@
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:sms_app/data/models/app_log_model.dart';
 import '../models/user_model.dart';
 import '../models/settings_model.dart';
 import '../models/sms_log_model.dart';
@@ -17,10 +18,16 @@ class CacheService {
 
     // Register All Adapters
     if (!Hive.isAdapterRegistered(0)) Hive.registerAdapter(UserModelAdapter());
-    if (!Hive.isAdapterRegistered(1)) Hive.registerAdapter(SettingsModelAdapter());
-    if (!Hive.isAdapterRegistered(2)) Hive.registerAdapter(SmsLogModelAdapter());
-    if (!Hive.isAdapterRegistered(3)) Hive.registerAdapter(QueueRequestModelAdapter());
-    if (!Hive.isAdapterRegistered(4)) Hive.registerAdapter(CachedDataModelAdapter());
+    if (!Hive.isAdapterRegistered(1))
+      Hive.registerAdapter(SettingsModelAdapter());
+    if (!Hive.isAdapterRegistered(2))
+      Hive.registerAdapter(SmsLogModelAdapter());
+    if (!Hive.isAdapterRegistered(3))
+      Hive.registerAdapter(QueueRequestModelAdapter());
+    if (!Hive.isAdapterRegistered(4))
+      Hive.registerAdapter(CachedDataModelAdapter());
+    if (!Hive.isAdapterRegistered(5))
+      Hive.registerAdapter(AppLogModelAdapter());
 
     // Open All Boxes
     await Future.wait([
@@ -30,6 +37,7 @@ class CacheService {
       Hive.openBox<SmsLogModel>(CacheBoxes.history),
       Hive.openBox<QueueRequestModel>(CacheBoxes.queue),
       Hive.openBox<CachedDataModel>(CacheBoxes.sims),
+      Hive.openBox<AppLogModel>(CacheBoxes.appLogs),
     ]);
   }
 
@@ -50,20 +58,27 @@ class CacheService {
   }
 
   SettingsModel getSettings() {
-    return Hive.box<SettingsModel>(CacheBoxes.settings).get(CacheKeys.appSettings) ?? SettingsModel();
+    return Hive.box<SettingsModel>(
+          CacheBoxes.settings,
+        ).get(CacheKeys.appSettings) ??
+        SettingsModel();
   }
 
   // --- Dashboard Cache (with Expiry) ---
   Future<void> setDashboardStats(Map<String, dynamic> stats) async {
     final box = Hive.box<CachedDataModel>(CacheBoxes.dashboard);
-    await box.put(CacheKeys.dashboardStats, CachedDataModel(
-      data: stats,
-      timestamp: DateTime.now(),
-    ));
+    await box.put(
+      CacheKeys.dashboardStats,
+      CachedDataModel(data: stats, timestamp: DateTime.now()),
+    );
   }
 
-  Map<String, dynamic>? getDashboardStats({Duration expiry = const Duration(minutes: 5)}) {
-    final cached = Hive.box<CachedDataModel>(CacheBoxes.dashboard).get(CacheKeys.dashboardStats);
+  Map<String, dynamic>? getDashboardStats({
+    Duration expiry = const Duration(minutes: 5),
+  }) {
+    final cached = Hive.box<CachedDataModel>(
+      CacheBoxes.dashboard,
+    ).get(CacheKeys.dashboardStats);
     if (cached == null) return null;
     if (cached.isExpired(expiry)) return null;
     return Map<String, dynamic>.from(cached.data);
@@ -93,6 +108,27 @@ class CacheService {
   Future<void> removeFromQueue(int index) async {
     final box = Hive.box<QueueRequestModel>(CacheBoxes.queue);
     await box.deleteAt(index);
+  }
+
+  // --- App Logs ---
+  Future<void> addAppLog(AppLogModel log) async {
+    final box = Hive.box<AppLogModel>(CacheBoxes.appLogs);
+    await box.add(log);
+
+    // Maintain a limit of 1000 logs to avoid bloating storage
+    if (box.length > 1000) {
+      await box.deleteAt(0);
+    }
+  }
+
+  List<AppLogModel> getAppLogs() {
+    return Hive.box<AppLogModel>(
+      CacheBoxes.appLogs,
+    ).values.toList().reversed.toList();
+  }
+
+  Future<void> clearAppLogs() async {
+    await Hive.box<AppLogModel>(CacheBoxes.appLogs).clear();
   }
 
   // --- Cleanup ---

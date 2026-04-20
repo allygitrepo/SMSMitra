@@ -1,13 +1,36 @@
 import '../cache/cache_service.dart';
 import '../models/user_model.dart';
 import '../models/settings_model.dart';
+import '../models/app_log_model.dart';
 
 /// A service to handle all local storage operations, now powered by CacheService.
 class StorageService {
   static final _cache = CacheService();
 
-  /// Legacy init - now handled by CacheService().init()
-  static Future<void> init() async {}
+  /// Initializes the storage service by initializing the underlying cache.
+  static Future<void> init() async {
+    await _cache.init();
+  }
+
+  /// Adds a local application log for debugging.
+  static Future<void> addAppLog(String message, {String level = 'info', String? details}) async {
+    await _cache.addAppLog(AppLogModel(
+      message: message,
+      level: level,
+      timestamp: DateTime.now(),
+      details: details,
+    ));
+  }
+
+  /// Retrieves the local application logs.
+  static List<AppLogModel> getAppLogs() {
+    return _cache.getAppLogs();
+  }
+
+  /// Clears all local application logs.
+  static Future<void> clearAppLogs() async {
+    await _cache.clearAppLogs();
+  }
 
   /// Saves the user data.
   static Future<void> saveUser(UserModel user) async {

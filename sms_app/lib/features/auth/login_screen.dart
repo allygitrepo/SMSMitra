@@ -57,77 +57,79 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Center(
-                  child: Image.asset(
-                    'assets/SMS _mitra .png',
-                    width: 150,
-                    height: 150,
-                    fit: BoxFit.contain,
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Center(
+                    child: Image.asset(
+                      'assets/sms.png',
+                      width: 150,
+                      height: 150,
+                      fit: BoxFit.contain,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 24),
-                const Text(
-                  'Welcome Back!',
-                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Login to continue sending messages.',
-                  style: TextStyle(color: Colors.grey),
-                ),
-                const SizedBox(height: 40),
+                  const SizedBox(height: 24),
+                  const Text(
+                    'Welcome Back!',
+                    style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Login to continue sending messages.',
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                  const SizedBox(height: 40),
 
-                CustomTextField(
-                  label: 'Email or Phone',
-                  hint: 'Enter registered email/phone',
-                  icon: Icons.person_outline,
-                  controller: _identityController,
-                  validator: (val) =>
-                      ValidationHelper.validateNotEmpty(val, 'Identity'),
-                ),
+                  CustomTextField(
+                    label: 'Email or Phone',
+                    hint: 'Enter registered email/phone',
+                    icon: Icons.person_outline,
+                    controller: _identityController,
+                    validator: (val) =>
+                        ValidationHelper.validateNotEmpty(val, 'Identity'),
+                  ),
 
-                CustomTextField(
-                  label: 'Password',
-                  hint: 'Enter your password',
-                  icon: Icons.lock_outline,
-                  controller: _passwordController,
-                  isPassword: true,
-                  validator: ValidationHelper.validatePassword,
-                ),
+                  CustomTextField(
+                    label: 'Password',
+                    hint: 'Enter your password',
+                    icon: Icons.lock_outline,
+                    controller: _passwordController,
+                    isPassword: true,
+                    validator: ValidationHelper.validatePassword,
+                  ),
 
-                const SizedBox(height: 20),
-                GradientButton(
-                  text: 'Login',
-                  onPressed: _handleLogin,
-                  isLoading: _isLoading,
-                ),
+                  const SizedBox(height: 20),
+                  GradientButton(
+                    text: 'Login',
+                    onPressed: _handleLogin,
+                    isLoading: _isLoading,
+                  ),
 
-                const SizedBox(height: 24),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Text("Don't have an account? "),
-                    GestureDetector(
-                      onTap: () => context.go(AppRouter.register),
-                      child: const Text(
-                        'Register',
-                        style: TextStyle(
-                          color: Colors.orange,
-                          fontWeight: FontWeight.bold,
+                  const SizedBox(height: 24),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Text("Don't have an account? "),
+                      GestureDetector(
+                        onTap: () => context.go(AppRouter.register),
+                        child: const Text(
+                          'Register',
+                          style: TextStyle(
+                            color: Colors.orange,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-              ],
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         ),

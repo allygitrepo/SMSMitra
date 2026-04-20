@@ -1,4 +1,4 @@
-package com.example.sms_app
+package com.example.sms_plugin
 
 import android.content.Context
 import android.telephony.SmsManager

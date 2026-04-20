@@ -163,6 +163,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ],
 
             const SizedBox(height: 48),
+            if (!_isEditing) ...[
+              OutlinedButton.icon(
+                onPressed: () => context.push(AppRouter.appLogs),
+                icon: const Icon(Icons.history_edu),
+                label: const Text('View System Logs'),
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size(double.infinity, 50),
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
             if (_isEditing) ...[
               ElevatedButton(
                 onPressed: _isSaving ? null : _handleUpdate,
