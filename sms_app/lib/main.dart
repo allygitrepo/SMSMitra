@@ -13,45 +13,61 @@ import 'data/services/sms_api_service.dart';
 // Background message handler
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  await Firebase.initializeApp(
-    options: const FirebaseOptions(
-      apiKey: "AIzaSyA1jTuHyRdi0WUVYQ7i8QKwQYORNcWXG7Y",
-      appId: "1:173486311571:web:301a0f7587ec31e67d2566",
-      messagingSenderId: "173486311571",
-      projectId: "sms-mitra",
-    ),
-  );
+  try {
+    debugPrint("FCM Background: Initializing...");
+    await Firebase.initializeApp(
+      options: const FirebaseOptions(
+        apiKey: "AIzaSyA1jTuHyRdi0WUVYQ7i8QKwQYORNcWXG7Y",
+        appId: "1:173486311571:web:301a0f7587ec31e67d2566",
+        messagingSenderId: "173486311571",
+        projectId: "sms-mitra",
+      ),
+    );
 
-  // MUST initialize storage in background to access API tokens
-  await CacheService().init();
+    // MUST initialize storage in background to access API tokens
+    await CacheService().init();
 
-  debugPrint("FCM Background Message Received: ${message.data}");
+    debugPrint("FCM Background Message Received: ${message.data}");
 
-  if (message.data['type'] == 'SEND_SMS') {
-    final smsService = SmsService();
-    final smsApi = SmsApiService();
-    final logId = message.data['logId'];
+    if (message.data['type'] == 'SEND_SMS') {
+      final smsService = SmsService();
+      final smsApi = SmsApiService();
+      final logId = message.data['logId'];
 
-    try {
-      await smsService.sendSms(
-        number: message.data['phoneNumber'],
-        message: message.data['message'],
-        simId: message.data['simId'], // Use the server-selected SIM
-      );
+      try {
+        final success = await smsService.sendSms(
+          number: message.data['phoneNumber'],
+          message: message.data['message'],
+          simId: message.data['simId'],
+        );
 
-      // Update status back to server
-      await smsApi.updateSmsStatus(
-        logId: logId,
-        status: 'sent',
-        simId: message.data['simId'],
-      );
-    } catch (e) {
-      await smsApi.updateSmsStatus(
-        logId: logId,
-        status: 'failed',
-        errorMessage: e.toString(),
-      );
+        // Update status back to server
+        await smsApi.updateSmsStatus(
+          logId: logId,
+          status: success ? 'sent' : 'failed',
+          simId: message.data['simId'],
+        );
+        debugPrint("FCM Background: SMS process completed. Success: $success");
+      } catch (e) {
+        debugPrint("FCM Background Error in processing: $e");
+        await smsApi.updateSmsStatus(
+          logId: logId,
+          status: 'failed',
+          errorMessage: "Process Error: $e",
+        );
+      }
     }
+  } catch (e) {
+    debugPrint("FCM Background FATAL Error: $e");
+    // We can't update status if we can't initialize, but we can try
+    try {
+      final smsApi = SmsApiService();
+      await smsApi.updateSmsStatus(
+        logId: message.data['logId'] ?? 'unknown',
+        status: 'failed',
+        errorMessage: "Initialization Error: $e",
+      );
+    } catch (_) {}
   }
 }
 
