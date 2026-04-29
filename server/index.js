@@ -22,11 +22,11 @@ app.use((err, req, res, next) => {
   res.status(500).send({ message: 'Something went wrong!' });
 });
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT;
 
 const startServer = async () => {
   await connectDB();
-  
+
   // Sync Database
   // Use { force: false } in production
   await sequelize.sync({ alter: true });
