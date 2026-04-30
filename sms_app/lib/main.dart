@@ -16,7 +16,8 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp(
     options: const FirebaseOptions(
       apiKey: "AIzaSyA1jTuHyRdi0WUVYQ7i8QKwQYORNcWXG7Y",
-      appId: "1:173486311571:web:301a0f7587ec31e67d2566",
+      appId:
+          "1:173486311571:android:301a0f7587ec31e67d2566", // Updated to android type
       messagingSenderId: "173486311571",
       projectId: "sms-mitra",
     ),
@@ -79,7 +80,7 @@ void main() async {
     options: const FirebaseOptions(
       apiKey: "AIzaSyA1jTuHyRdi0WUVYQ7i8QKwQYORNcWXG7Y",
       appId:
-          "1:173486311571:web:301a0f7587ec31e67d2566", // Using placeholder for android ID, you should update with your actual app package ID
+          "1:173486311571:android:301a0f7587ec31e67d2566", // Updated to android type
       messagingSenderId: "173486311571",
       projectId: "sms-mitra",
     ),

@@ -1,6 +1,6 @@
 class ApiConstants {
   static const String baseUrl =
-      'http://192.168.1.9:3000/smsmitra/v1'; // Replace with your server IP
+      'https://silverapi.allysoftsolutions.com/smsmitra/v1'; // Replace with your server IP
 
   // Auth Endpoints
   static const String register = '/auth/register';

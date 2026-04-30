@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_riverpod/legacy.dart';
 import '../../data/models/settings_model.dart';
 import '../../data/models/sim_model.dart';
 import '../../data/services/storage_service.dart';

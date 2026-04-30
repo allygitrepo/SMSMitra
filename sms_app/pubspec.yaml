@@ -19,7 +19,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 version: 1.0.0+1
 
 environment:
-  sdk: ^3.10.4
+  sdk: ">=3.0.0 <4.0.0"
 
 # Dependencies specify other packages that your package needs in order to work.
 # To automatically upgrade your package dependencies to the latest versions
@@ -31,7 +31,7 @@ dependencies:
   flutter:
     sdk: flutter
 
-  flutter_riverpod: ^3.3.1
+  flutter_riverpod: ^2.6.1
   go_router: ^17.2.1
   permission_handler: ^12.0.1
   hive_flutter: ^1.1.0
@@ -53,9 +53,20 @@ dev_dependencies:
     sdk: flutter
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
-  build_runner: ^2.4.13
+  build_runner: ^2.4.9
   hive_generator: ^2.0.1
   flutter_launcher_icons: ^0.14.4
+  package_rename: ^1.10.1
+
+package_rename_config:
+  android:
+    package_name: com.allysoftsolutions.smsmitra
+  ios:
+    bundle_id: com.allysoftsolutions.smsmitra
+  linux:
+    package_name: com.allysoftsolutions.smsmitra
+  macos:
+    bundle_id: com.allysoftsolutions.smsmitra
 
 flutter_launcher_icons:
   android: "launcher_icon"

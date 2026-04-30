@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_riverpod/legacy.dart';
 import 'package:sms_app/data/models/sim_model.dart';
 import 'package:sms_app/data/services/sim_service.dart';
 import 'package:sms_app/data/services/storage_service.dart';

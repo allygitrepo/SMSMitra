@@ -1,5 +1,4 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_riverpod/legacy.dart';
 import '../../data/services/sms_api_service.dart';
 import '../../data/services/storage_service.dart';
 
