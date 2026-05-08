@@ -177,7 +177,8 @@ class _SplashScreenState extends State<SplashScreen>
       if (StorageService.isSimConfigured()) {
         context.go(AppRouter.home);
       } else {
-        context.go(AppRouter.settings);
+        // Not yet configured — send to mandatory first-time setup
+        context.go(AppRouter.setupSim);
       }
     } else {
       context.go(isRegistered ? AppRouter.login : AppRouter.register);

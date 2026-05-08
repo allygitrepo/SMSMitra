@@ -15,20 +15,20 @@ class MainNavigation extends StatefulWidget {
 class _MainNavigationState extends State<MainNavigation> {
   int _selectedIndex = 0;
 
-  final List<Widget> _pages = [
-    const HomeScreen(),
-    const BulkSendScreen(),
-    const ReportsScreen(),
-    const SettingsScreen(),
-    const ProfileScreen(),
-  ];
-
   @override
   Widget build(BuildContext context) {
+    final pages = [
+      const HomeScreen(),
+      const BulkSendScreen(),
+      const ReportsScreen(),
+      const SettingsScreen(), // isFirstTime defaults to false — normal settings tab
+      const ProfileScreen(),
+    ];
+
     return Scaffold(
       body: IndexedStack(
         index: _selectedIndex,
-        children: _pages,
+        children: pages,
       ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,

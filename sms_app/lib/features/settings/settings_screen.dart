@@ -10,7 +10,9 @@ import 'settings_provider.dart';
 
 /// Screen to manage SIM setup, daily limits, and theme settings.
 class SettingsScreen extends ConsumerStatefulWidget {
-  const SettingsScreen({super.key});
+  /// When true, the user MUST save settings before navigating away.
+  final bool isFirstTime;
+  const SettingsScreen({super.key, this.isFirstTime = false});
 
   @override
   ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
@@ -21,6 +23,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   List<SimModel> _availableSims = [];
   bool _isDetecting = true;
   bool _isEditing = false;
+  bool _hasSaved = false; // tracks if user saved during first-time setup
   late TextEditingController _limitController;
 
   @override
@@ -32,7 +35,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     // Initial check for editing mode
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final settings = ref.read(settingsProvider);
-      if (settings.simPriority.isEmpty) {
+      // Force edit mode on first-time setup or if no SIM configured yet
+      if (widget.isFirstTime || settings.simPriority.isEmpty) {
         setState(() => _isEditing = true);
       }
     });
@@ -93,98 +97,193 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Widget build(BuildContext context) {
     final settings = ref.watch(settingsProvider);
     final notifier = ref.read(settingsProvider.notifier);
+    final isFirstTime = widget.isFirstTime;
+    final hasSimSelected = settings.simPriority.isNotEmpty;
 
     if (_limitController.text != settings.dailySmsLimit.toString()) {
       _limitController.text = settings.dailySmsLimit.toString();
     }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(_isEditing ? 'Edit Settings' : 'App Settings'),
-        actions: [
-          IconButton(
-            icon: Icon(
-              settings.themeMode == 'dark'
-                  ? Icons.dark_mode
-                  : settings.themeMode == 'light'
-                      ? Icons.light_mode
-                      : Icons.settings_brightness,
-            ),
-            onPressed: () => notifier.cycleTheme(),
-            tooltip: 'Cycle Theme',
-          ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _buildSectionHeader('SIM Configuration'),
-                if (!_isEditing && settings.simPriority.isNotEmpty)
-                  TextButton.icon(
-                    onPressed: () => setState(() => _isEditing = true),
-                    icon: const Icon(Icons.edit, size: 18),
-                    label: const Text('Edit'),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            if (_isDetecting)
-              const Center(child: CircularProgressIndicator())
-            else if (_availableSims.isEmpty)
-              _buildErrorCard('No SIM cards found. Please check permissions.')
-            else
-              IgnorePointer(
-                ignoring: !_isEditing,
-                child: Opacity(
-                  opacity: _isEditing ? 1.0 : 0.7,
-                  child: Column(
-                    children: _availableSims
-                        .map((sim) => _buildSimItem(sim, settings, notifier))
-                        .toList(),
-                  ),
+    return PopScope<Object?>(
+      // Block back navigation during first-time setup until saved
+      canPop: !isFirstTime || _hasSaved,
+      onPopInvokedWithResult: (bool didPop, Object? result) {
+        if (!didPop && isFirstTime) {
+          MessageHelper.showWarning(
+            context,
+            'Please select a SIM and tap "Save & Continue" to proceed.',
+          );
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(isFirstTime ? 'Setup Your SIM Card' : (_isEditing ? 'Edit Settings' : 'App Settings')),
+          automaticallyImplyLeading: !isFirstTime, // hide back arrow during setup
+          actions: [
+            if (!isFirstTime)
+              IconButton(
+                icon: Icon(
+                  settings.themeMode == 'dark'
+                      ? Icons.dark_mode
+                      : settings.themeMode == 'light'
+                          ? Icons.light_mode
+                          : Icons.settings_brightness,
                 ),
-              ),
-            
-            if (settings.simPriority.length > 1) ...[
-              const SizedBox(height: 24),
-              _buildSectionHeader('SIM Priority (Drag to reorder)'),
-              const SizedBox(height: 12),
-              IgnorePointer(
-                ignoring: !_isEditing,
-                child: Opacity(
-                  opacity: _isEditing ? 1.0 : 0.7,
-                  child: _buildPriorityList(settings, notifier),
-                ),
-              ),
-            ],
-            
-            const SizedBox(height: 48),
-            if (_isEditing)
-              GradientButton(
-                text: settings.simPriority.isEmpty ? 'Save & Continue' : 'Update Settings',
-                onPressed: () async {
-                  if (settings.simPriority.isEmpty && _availableSims.isNotEmpty) {
-                    MessageHelper.showWarning(context, 'Please select at least one SIM card');
-                    return;
-                  }
-                  
-                  await notifier.syncWithServer();
-                  setState(() => _isEditing = false);
-                  MessageHelper.showSuccess(context, 'Settings updated successfully!');
-                  
-                  // If it's the first time, navigate to dashboard
-                  // Check if we are currently in setup flow
-                  if (GoRouterState.of(context).uri.toString() == AppRouter.settings) {
-                     context.go(AppRouter.home);
-                  }
-                },
+                onPressed: () => notifier.cycleTheme(),
+                tooltip: 'Cycle Theme',
               ),
           ],
+        ),
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ── First-time onboarding banner ──
+              if (isFirstTime) ...[
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  margin: const EdgeInsets.only(bottom: 20),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Colors.orange.shade700, Colors.orange.shade400],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.sim_card_alert, color: Colors.white, size: 32),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Welcome to SMSMitra!',
+                              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                            ),
+                            SizedBox(height: 4),
+                            Text(
+                              'Select and save a SIM card below to start sending messages.',
+                              style: TextStyle(color: Colors.white70, fontSize: 13),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  _buildSectionHeader('SIM Configuration'),
+                  if (!_isEditing && hasSimSelected && !isFirstTime)
+                    TextButton.icon(
+                      onPressed: () => setState(() => _isEditing = true),
+                      icon: const Icon(Icons.edit, size: 18),
+                      label: const Text('Edit'),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              if (_isDetecting)
+                const Center(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(vertical: 24),
+                    child: Column(
+                      children: [
+                        CircularProgressIndicator(),
+                        SizedBox(height: 12),
+                        Text('Detecting SIM cards…', style: TextStyle(color: Colors.grey)),
+                      ],
+                    ),
+                  ),
+                )
+              else if (_availableSims.isEmpty)
+                _buildErrorCard('No SIM cards found. Please check permissions.')
+              else
+                IgnorePointer(
+                  ignoring: !_isEditing,
+                  child: Opacity(
+                    opacity: _isEditing ? 1.0 : 0.7,
+                    child: Column(
+                      children: _availableSims
+                          .map((sim) => _buildSimItem(sim, settings, notifier))
+                          .toList(),
+                    ),
+                  ),
+                ),
+              
+              if (settings.simPriority.length > 1) ...[
+                const SizedBox(height: 24),
+                _buildSectionHeader('SIM Priority (Drag to reorder)'),
+                const SizedBox(height: 12),
+                IgnorePointer(
+                  ignoring: !_isEditing,
+                  child: Opacity(
+                    opacity: _isEditing ? 1.0 : 0.7,
+                    child: _buildPriorityList(settings, notifier),
+                  ),
+                ),
+              ],
+              
+              const SizedBox(height: 32),
+
+              // ── Save button (always shown during editing / first-time) ──
+              if (_isEditing || isFirstTime) ...[
+                if (isFirstTime && !hasSimSelected)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: Row(
+                      children: [
+                        Icon(Icons.info_outline, color: Colors.orange.shade700, size: 18),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Select at least one SIM card above to continue.',
+                            style: TextStyle(color: Colors.orange.shade700, fontSize: 13),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                GradientButton(
+                  text: isFirstTime ? 'Save & Continue' : 'Update Settings',
+                  onPressed: _isDetecting
+                      ? null
+                      : () async {
+                          if (!hasSimSelected && _availableSims.isNotEmpty) {
+                            MessageHelper.showWarning(
+                              context,
+                              'Please select at least one SIM card to continue.',
+                            );
+                            return;
+                          }
+                          await notifier.syncWithServer();
+                          setState(() {
+                            _isEditing = false;
+                            _hasSaved = true;
+                          });
+                          if (!context.mounted) return;
+                          MessageHelper.showSuccess(
+                            context,
+                            isFirstTime
+                                ? 'Setup complete! Welcome to SMSMitra 🎉'
+                                : 'Settings updated successfully!',
+                          );
+                          if (isFirstTime) {
+                            context.go(AppRouter.home);
+                          }
+                        },
+                ),
+              ],
+              const SizedBox(height: 24),
+            ],
+          ),
         ),
       ),
     );

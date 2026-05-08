@@ -13,6 +13,7 @@ class AppRouter {
   static const String login = '/login';
   static const String register = '/register';
   static const String settings = '/settings';
+  static const String setupSim = '/setup-sim'; // first-time SIM setup gate
   static const String home = '/home';
   static const String apiIntegration = '/api-integration';
   static const String appLogs = '/app-logs';
@@ -39,6 +40,10 @@ class AppRouter {
       GoRoute(
         path: settings,
         builder: (context, state) => const SettingsScreen(),
+      ),
+      GoRoute(
+        path: setupSim,
+        builder: (context, state) => const SettingsScreen(isFirstTime: true),
       ),
       GoRoute(
         path: apiIntegration,
