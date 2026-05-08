@@ -17,13 +17,13 @@ const io = new Server(server, {
 app.set('io', io);
 
 io.on('connection', (socket) => {
-  console.log('Client connected:', socket.id);
+  // console.log('Client connected:', socket.id);
   socket.on('join', (userId) => {
     socket.join(userId.toString());
-    console.log(`User ${userId} joined room`);
+    // console.log(`User ${userId} joined room`);
   });
   socket.on('disconnect', () => {
-    console.log('Client disconnected:', socket.id);
+    // console.log('Client disconnected:', socket.id);
   });
 });
 
