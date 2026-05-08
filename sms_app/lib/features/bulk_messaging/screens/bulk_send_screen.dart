@@ -358,6 +358,8 @@ class _BulkSendScreenState extends ConsumerState<BulkSendScreen> {
                           onPressed: () {
                             controller.clear();
                             notifier.selectTemplate(null);
+                            _messageController.clear();
+                            notifier.updateMessage('');
                           },
                         )
                       : null,
@@ -498,37 +500,37 @@ class _BulkSendScreenState extends ConsumerState<BulkSendScreen> {
               const SizedBox(height: 12),
               TextField(controller: addrCtrl, decoration: const InputDecoration(labelText: 'Office Address', border: OutlineInputBorder()), maxLines: 2),
               const SizedBox(height: 20),
-              const Text('Organization Logo', style: TextStyle(fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
-              InkWell(
-                onTap: () async {
-                  FilePickerResult? result = await FilePicker.platform.pickFiles(type: FileType.image);
-                  if (result != null) {
-                    setState(() => selectedLogo = File(result.files.single.path!));
-                  }
-                },
-                child: Container(
-                  height: 100,
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey.shade300),
-                    borderRadius: BorderRadius.circular(10),
-                    color: Colors.grey.shade50,
-                  ),
-                  child: selectedLogo == null
-                      ? Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: const [
-                            Icon(Icons.add_photo_alternate_outlined, color: Colors.grey),
-                            Text('Click to select logo', style: TextStyle(color: Colors.grey, fontSize: 12)),
-                          ],
-                        )
-                      : ClipRRect(
-                          borderRadius: BorderRadius.circular(10),
-                          child: Image.file(selectedLogo!, fit: BoxFit.cover),
-                        ),
-                ),
-              ),
+              // const Text('Organization Logo', style: TextStyle(fontWeight: FontWeight.bold)),
+              // const SizedBox(height: 8),
+              // InkWell(
+              //   onTap: () async {
+              //     FilePickerResult? result = await FilePicker.platform.pickFiles(type: FileType.image);
+              //     if (result != null) {
+              //       setState(() => selectedLogo = File(result.files.single.path!));
+              //     }
+              //   },
+              //   child: Container(
+              //     height: 100,
+              //     width: double.infinity,
+              //     decoration: BoxDecoration(
+              //       border: Border.all(color: Colors.grey.shade300),
+              //       borderRadius: BorderRadius.circular(10),
+              //       color: Colors.grey.shade50,
+              //     ),
+              //     child: selectedLogo == null
+              //         ? Column(
+              //             mainAxisAlignment: MainAxisAlignment.center,
+              //             children: const [
+              //               Icon(Icons.add_photo_alternate_outlined, color: Colors.grey),
+              //               Text('Click to select logo', style: TextStyle(color: Colors.grey, fontSize: 12)),
+              //             ],
+              //           )
+              //         : ClipRRect(
+              //             borderRadius: BorderRadius.circular(10),
+              //             child: Image.file(selectedLogo!, fit: BoxFit.cover),
+              //           ),
+              //   ),
+              // ),
               const SizedBox(height: 24),
               GradientButton(
                 text: 'Create Organization',
