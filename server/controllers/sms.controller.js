@@ -181,6 +181,14 @@ exports.getDetailedReports = async (req, res) => {
       where.simId = simId;
     }
 
+    if (req.query.orgCode) {
+      if (req.query.orgCode === 'none') {
+        where.orgCode = null;
+      } else if (req.query.orgCode !== 'all') {
+        where.orgCode = req.query.orgCode;
+      }
+    }
+
     const logs = await SmsLog.findAll({
       where,
       order: [['createdAt', 'DESC']]
@@ -255,13 +263,14 @@ exports.updateSmsStatus = async (req, res) => {
 
 exports.createManualLog = async (req, res) => {
   try {
-    const { userId, phoneNumber, message, simId, status } = req.body;
+    const { userId, phoneNumber, message, simId, status, orgCode } = req.body;
     const log = await SmsLog.create({
       userId,
       receiverNumber: phoneNumber,
       message,
       simId,
-      status
+      status,
+      orgCode
     });
 
     // Increment usage on SIM for manual sends

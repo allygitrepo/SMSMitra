@@ -25,6 +25,9 @@ class SmsLogModel extends HiveObject {
   @HiveField(6)
   final String? errorMessage;
 
+  @HiveField(7)
+  final String? orgCode;
+
   SmsLogModel({
     this.id,
     required this.receiverNumber,
@@ -33,6 +36,7 @@ class SmsLogModel extends HiveObject {
     this.simId,
     required this.createdAt,
     this.errorMessage,
+    this.orgCode,
   });
 
   Map<String, dynamic> toJson() => {
@@ -43,6 +47,7 @@ class SmsLogModel extends HiveObject {
     'simId': simId,
     'createdAt': createdAt.toIso8601String(),
     'errorMessage': errorMessage,
+    'orgCode': orgCode,
   };
 
   factory SmsLogModel.fromJson(Map<String, dynamic> json) => SmsLogModel(
@@ -53,5 +58,6 @@ class SmsLogModel extends HiveObject {
     simId: json['simId']?.toString(),
     createdAt: DateTime.parse(json['createdAt'] ?? DateTime.now().toIso8601String()),
     errorMessage: json['errorMessage'],
+    orgCode: json['orgCode']?.toString(),
   );
 }

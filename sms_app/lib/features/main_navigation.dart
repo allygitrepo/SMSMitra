@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'home/home_screen.dart';
+import 'bulk_messaging/screens/bulk_send_screen.dart';
 import 'reports/reports_screen.dart';
 import 'settings/settings_screen.dart';
 import 'profile/profile_screen.dart';
@@ -16,6 +17,7 @@ class _MainNavigationState extends State<MainNavigation> {
 
   final List<Widget> _pages = [
     const HomeScreen(),
+    const BulkSendScreen(),
     const ReportsScreen(),
     const SettingsScreen(),
     const ProfileScreen(),
@@ -40,6 +42,11 @@ class _MainNavigationState extends State<MainNavigation> {
             icon: Icon(Icons.dashboard_outlined),
             activeIcon: Icon(Icons.dashboard),
             label: 'Home',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.send_outlined),
+            activeIcon: Icon(Icons.send),
+            label: 'Bulk',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.assessment_outlined),

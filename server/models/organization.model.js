@@ -1,7 +1,7 @@
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/db');
 
-const SmsLog = sequelize.define('SmsLog', {
+const Organization = sequelize.define('Organization', {
   id: {
     type: DataTypes.INTEGER,
     autoIncrement: true,
@@ -11,27 +11,24 @@ const SmsLog = sequelize.define('SmsLog', {
     type: DataTypes.INTEGER,
     allowNull: false,
   },
-  receiverNumber: {
-    type: DataTypes.STRING,
-    allowNull: false,
-  },
-  message: {
-    type: DataTypes.TEXT,
-    allowNull: false,
-  },
-  simId: {
-    type: DataTypes.STRING,
-    allowNull: true,
-  },
-  status: {
-    type: DataTypes.ENUM('pending', 'sent', 'failed'),
-    defaultValue: 'pending',
-  },
-  errorMessage: {
-    type: DataTypes.TEXT,
-    allowNull: true,
-  },
   orgCode: {
+    type: DataTypes.STRING,
+    allowNull: false,
+    unique: true,
+  },
+  orgName: {
+    type: DataTypes.STRING,
+    allowNull: false,
+  },
+  email: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+  address: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+  },
+  logo: {
     type: DataTypes.STRING,
     allowNull: true,
   },
@@ -39,4 +36,4 @@ const SmsLog = sequelize.define('SmsLog', {
   timestamps: true,
 });
 
-module.exports = SmsLog;
+module.exports = Organization;

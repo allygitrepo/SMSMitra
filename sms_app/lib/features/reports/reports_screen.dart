@@ -18,7 +18,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(reportsProvider.notifier).fetchReports();
+      ref.read(reportsProvider.notifier).init();
     });
   }
 
@@ -61,6 +61,44 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                 : _buildLogsTable(state.logs),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildOrgFilter(BuildContext context, ReportsState state) {
+    final theme = Theme.of(context);
+    return SizedBox(
+      height: 45,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          border: Border.all(color: theme.dividerColor),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: DropdownButtonHideUnderline(
+          child: DropdownButton<String>(
+            value: state.orgCode ?? 'all',
+            isDense: true,
+            dropdownColor: theme.cardColor,
+            icon: Icon(Icons.business, color: theme.primaryColor, size: 16),
+            items: [
+              const DropdownMenuItem(value: 'all', child: Text('All Types')),
+              const DropdownMenuItem(value: 'none', child: Text('Personal')),
+              ...state.organizations.map((org) => DropdownMenuItem(
+                    value: org.orgCode,
+                    child: Text(org.orgName),
+                  )),
+            ],
+            onChanged: (val) {
+              ref.read(reportsProvider.notifier).updateOrgFilter(val);
+            },
+            style: TextStyle(
+              fontSize: 13,
+              color: theme.textTheme.bodyMedium?.color,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -141,6 +179,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
               ),
             ),
           ),
+          const SizedBox(width: 12),
+          _buildOrgFilter(context, state),
           const SizedBox(width: 12),
           SizedBox(
             height: 45,
@@ -226,9 +266,9 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 16),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
+          color: color.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withOpacity(0.3)),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
         ),
         child: Column(
           children: [
@@ -260,6 +300,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
             DataColumn(label: Text('Receiver')),
             DataColumn(label: Text('Message')),
             DataColumn(label: Text('SIM')),
+            DataColumn(label: Text('Org')),
             DataColumn(label: Text('Status')),
           ],
           rows: logs.map((log) {
@@ -289,6 +330,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                   ),
                 ),
                 DataCell(Text(simLabel)),
+                DataCell(Text(log['orgCode'] ?? '-')),
                 DataCell(_buildStatusChip(log['status'])),
               ],
             );
@@ -307,7 +349,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(4),
       ),
       child: Text(
@@ -326,7 +368,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.notes, size: 64, color: Colors.grey.withOpacity(0.5)),
+          Icon(Icons.notes, size: 64, color: Colors.grey.withValues(alpha: 0.5)),
           const SizedBox(height: 16),
           const Text(
             'No records found for the selected filters',
