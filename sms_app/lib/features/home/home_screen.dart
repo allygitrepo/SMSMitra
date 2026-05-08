@@ -18,6 +18,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/models/sim_model.dart';
 import '../settings/settings_provider.dart';
 import 'stats_provider.dart';
+import '../../data/services/socket_service.dart';
 
 /// The main operational screen of the app where users send SMS.
 class HomeScreen extends ConsumerStatefulWidget {
@@ -35,6 +36,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   bool _isSending = false;
   bool _isSyncing = false;
   StreamSubscription<RemoteMessage>? _fcmSubscription;
+  StreamSubscription<void>? _socketSubscription;
 
   @override
   void initState() {
@@ -46,6 +48,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         debugPrint("HomeScreen: Received real-time stats update trigger");
         _refreshData();
       }
+    });
+
+    SocketService().initSocket();
+    _socketSubscription = SocketService().statsUpdateStream.listen((_) {
+      debugPrint("HomeScreen: Received Socket stats update trigger");
+      _refreshData();
     });
   }
 
@@ -64,6 +72,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   void dispose() {
     _fcmSubscription?.cancel();
+    _socketSubscription?.cancel();
+    SocketService().disconnect();
     _phoneController.dispose();
     _messageController.dispose();
     super.dispose();

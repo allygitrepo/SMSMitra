@@ -4,8 +4,11 @@ const SmsLog = require('../models/smslog.model');
 const SimDetail = require('../models/simdetail.model');
 const admin = require('../config/firebase');
 
-const notifyStatsUpdate = async (userId) => {
+const notifyStatsUpdate = async (userId, io) => {
   try {
+    if (io) {
+      io.to(userId.toString()).emit('stats_update');
+    }
     const user = await User.findByPk(userId);
     if (user && user.fcmToken) {
       const payload = {
@@ -89,7 +92,7 @@ exports.sendSmsTrigger = async (req, res) => {
     await admin.messaging().send(payload);
 
     // Trigger UI update on app
-    notifyStatsUpdate(user.id);
+    notifyStatsUpdate(user.id, req.app.get('io'));
 
     // Increment usage
     if (selectedSim) {
@@ -253,7 +256,7 @@ exports.updateSmsStatus = async (req, res) => {
     }
 
     // Trigger UI update on app
-    notifyStatsUpdate(log.userId);
+    notifyStatsUpdate(log.userId, req.app.get('io'));
 
     res.json({ message: 'Status updated' });
   } catch (error) {
@@ -283,7 +286,7 @@ exports.createManualLog = async (req, res) => {
     }
 
     // Trigger UI update on app
-    notifyStatsUpdate(userId);
+    notifyStatsUpdate(userId, req.app.get('io'));
 
     res.status(201).json(log);
   } catch (error) {

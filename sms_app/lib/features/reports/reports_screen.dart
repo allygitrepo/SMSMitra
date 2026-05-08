@@ -5,6 +5,8 @@ import 'package:sms_app/features/home/stats_provider.dart';
 import '../../core/utils/pdf_generator.dart';
 import '../../features/reports/reports_provider.dart';
 import '../../features/settings/settings_provider.dart';
+import '../../data/services/socket_service.dart';
+import 'dart:async';
 
 class ReportsScreen extends ConsumerStatefulWidget {
   const ReportsScreen({super.key});
@@ -14,12 +16,25 @@ class ReportsScreen extends ConsumerStatefulWidget {
 }
 
 class _ReportsScreenState extends ConsumerState<ReportsScreen> {
+  StreamSubscription<void>? _socketSubscription;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(reportsProvider.notifier).init();
     });
+
+    _socketSubscription = SocketService().statsUpdateStream.listen((_) {
+      debugPrint("ReportsScreen: Received Socket stats update trigger");
+      ref.read(reportsProvider.notifier).fetchReports();
+    });
+  }
+
+  @override
+  void dispose() {
+    _socketSubscription?.cancel();
+    super.dispose();
   }
 
   @override

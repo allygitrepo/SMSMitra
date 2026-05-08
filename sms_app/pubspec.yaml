@@ -49,6 +49,7 @@ dependencies:
   fluttertoast: ^8.2.10
   sms_plugin:
     path: local_plugins/sms_plugin
+  socket_io_client: ^3.1.4
 
 
 dev_dependencies:

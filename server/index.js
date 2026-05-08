@@ -1,12 +1,31 @@
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
+const http = require('http');
+const { Server } = require('socket.io');
 require('dotenv').config();
 
 const { connectDB, sequelize } = require('./config/db');
 const routes = require('./routes/index');
 
 const app = express();
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: { origin: '*' }
+});
+
+app.set('io', io);
+
+io.on('connection', (socket) => {
+  console.log('Client connected:', socket.id);
+  socket.on('join', (userId) => {
+    socket.join(userId.toString());
+    console.log(`User ${userId} joined room`);
+  });
+  socket.on('disconnect', () => {
+    console.log('Client disconnected:', socket.id);
+  });
+});
 
 // Middlewares
 app.use(cors());
@@ -32,7 +51,7 @@ const startServer = async () => {
   await sequelize.sync({ alter: true });
   console.log('Database synced.');
 
-  app.listen(PORT, () => {
+  server.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
   });
 };
