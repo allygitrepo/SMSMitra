@@ -48,7 +48,7 @@ const startServer = async () => {
 
   // Sync Database
   // Use { force: false } in production
-  await sequelize.sync({ alter: true });
+  await sequelize.sync({ force: false });;
   console.log('Database synced.');
 
   server.listen(PORT, () => {

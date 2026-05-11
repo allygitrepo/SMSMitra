@@ -4,10 +4,12 @@ const router = express.Router();
 const authRoutes = require('./auth.routes');
 const smsRoutes = require('./sms.routes');
 const bulkRoutes = require('./bulk.routes');
+// const telegramRoutes = require('./telegram.routes');
 
 router.use('/auth', authRoutes);
 router.use('/sms', smsRoutes);
 router.use('/bulk', bulkRoutes);
+// router.use('/telegram', telegramRoutes);
 router.use('/test', (req, res) => {
     res.status(200).json({
         "Server": "SMS Mitra",

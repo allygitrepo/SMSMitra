@@ -192,6 +192,12 @@ exports.getDetailedReports = async (req, res) => {
       }
     }
 
+    if (req.query.channel) {
+      if (req.query.channel !== 'all') {
+        where.channel = req.query.channel;
+      }
+    }
+
     const logs = await SmsLog.findAll({
       where,
       order: [['createdAt', 'DESC']]

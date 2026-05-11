@@ -115,6 +115,7 @@ class SmsApiService {
     DateTime? endDate,
     String? simId,
     String? orgCode,
+    String? channel,
   }) async {
     try {
       final queryParams = {
@@ -123,6 +124,7 @@ class SmsApiService {
         if (endDate != null) 'endDate': endDate.toIso8601String(),
         if (simId != null) 'simId': simId,
         if (orgCode != null) 'orgCode': orgCode,
+        if (channel != null && channel != 'all') 'channel': channel,
       };
 
       final response = await _apiService.get(

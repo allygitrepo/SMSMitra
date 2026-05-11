@@ -10,6 +10,7 @@ import '../../../core/helpers/snackbar_helper.dart';
 import '../../../shared/widgets/custom_text_field.dart';
 import '../../../shared/widgets/gradient_button.dart';
 import '../../../core/theme/app_colors.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class BulkSendScreen extends ConsumerStatefulWidget {
   const BulkSendScreen({super.key});
@@ -70,6 +71,8 @@ class _BulkSendScreenState extends ConsumerState<BulkSendScreen> {
                 children: [
                   _buildOrganizationSelector(state, notifier),
                   const SizedBox(height: 16),
+                  _buildChannelSelector(state, notifier),
+                  const SizedBox(height: 16),
                   _buildTemplateSelector(state, notifier),
                   const SizedBox(height: 16),
                   _buildMessageComposer(state, notifier),
@@ -77,12 +80,15 @@ class _BulkSendScreenState extends ConsumerState<BulkSendScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('Add Recipients', style: TextStyle(fontWeight: FontWeight.bold)),
+                      const Text('Add Recipients',
+                          style: TextStyle(fontWeight: FontWeight.bold)),
                       _buildEntryTypeToggle(),
                     ],
                   ),
                   const SizedBox(height: 8),
-                  if (_isManualEntry)
+                  // if (state.channel == 'telegram')
+                  //   _buildTelegramSection(state, notifier)
+                  /* else */ if (_isManualEntry)
                     _buildManualEntryCard(notifier)
                   else
                     _buildUploadCard(notifier),
@@ -159,7 +165,8 @@ class _BulkSendScreenState extends ConsumerState<BulkSendScreen> {
     );
   }
 
-  Widget _buildOrganizationSelector(BulkMessagingState state, BulkMessagingNotifier notifier) {
+  Widget _buildChannelSelector(
+      BulkMessagingState state, BulkMessagingNotifier notifier) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(12),
@@ -169,10 +176,117 @@ class _BulkSendScreenState extends ConsumerState<BulkSendScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Organization', style: TextStyle(fontWeight: FontWeight.bold)),
+                const Text('Communication Channel',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+                /* if (state.channel == 'telegram')
+                  TextButton.icon(
+                    onPressed: () async {
+                      const url = 'https://t.me/smsmitra_bot'; // adjust bot URL
+                      if (await canLaunchUrl(Uri.parse(url))) {
+                        await launchUrl(Uri.parse(url),
+                            mode: LaunchMode.externalApplication);
+                      }
+                    },
+                    icon: const Icon(Icons.telegram, size: 16),
+                    label: const Text('Connect Telegram',
+                        style: TextStyle(fontSize: 12)),
+                  ), */
+              ],
+            ),
+            const SizedBox(height: 8),
+            SegmentedButton<String>(
+              segments: const [
+                ButtonSegment(value: 'sms', label: Text('SMS')),
+                // ButtonSegment(value: 'telegram', label: Text('Telegram')),
+              ],
+              selected: {state.channel},
+              onSelectionChanged: (Set<String> newSelection) {
+                notifier.setChannel(newSelection.first);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /* Widget _buildTelegramSection(
+      BulkMessagingState state, BulkMessagingNotifier notifier) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Telegram Contacts',
+                    style:
+                        TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                IconButton(
+                  onPressed: () => notifier.fetchTelegramContacts(),
+                  icon: const Icon(Icons.refresh,
+                      size: 20, color: AppColors.orange),
+                )
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (state.telegramContacts.isEmpty)
+              const Text('No Telegram contacts found. Please connect bot.',
+                  style: TextStyle(color: Colors.grey))
+            else
+              SizedBox(
+                height: 200,
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: state.telegramContacts.length,
+                  itemBuilder: (context, index) {
+                    final contact = state.telegramContacts[index];
+                    final isAdded = state.recipients
+                        .any((r) => r.phone == contact.telegramChatId);
+
+                    return ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: const CircleAvatar(child: Icon(Icons.telegram)),
+                      title: Text(contact.name),
+                      subtitle: Text(
+                          contact.telegramUsername ?? contact.telegramChatId),
+                      trailing: isAdded
+                          ? const Icon(Icons.check_circle, color: Colors.green)
+                          : IconButton(
+                              icon: const Icon(Icons.add_circle_outline,
+                                  color: AppColors.orange),
+                              onPressed: () =>
+                                  notifier.addTelegramRecipient(contact),
+                            ),
+                    );
+                  },
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  } */
+
+  Widget _buildOrganizationSelector(
+      BulkMessagingState state, BulkMessagingNotifier notifier) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Organization',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
                 IconButton(
                   onPressed: () => _showAddOrgBottomSheet(context),
-                  icon: const Icon(Icons.add_circle_outline, color: AppColors.orange, size: 20),
+                  icon: const Icon(Icons.add_circle_outline,
+                      color: AppColors.orange, size: 20),
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
                   tooltip: 'Add New Organization',
@@ -182,35 +296,40 @@ class _BulkSendScreenState extends ConsumerState<BulkSendScreen> {
             const SizedBox(height: 8),
             Autocomplete<OrganizationModel>(
               displayStringForOption: (option) => option.orgName,
-              initialValue: TextEditingValue(text: state.selectedOrg?.orgName ?? ''),
+              initialValue:
+                  TextEditingValue(text: state.selectedOrg?.orgName ?? ''),
               optionsBuilder: (TextEditingValue textEditingValue) {
                 if (textEditingValue.text == '') {
                   return state.organizations;
                 }
                 return state.organizations.where((org) {
-                  return org.orgName.toLowerCase().contains(textEditingValue.text.toLowerCase());
+                  return org.orgName
+                      .toLowerCase()
+                      .contains(textEditingValue.text.toLowerCase());
                 });
               },
               onSelected: (option) {
                 notifier.selectOrganization(option);
               },
-              fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+              fieldViewBuilder:
+                  (context, controller, focusNode, onFieldSubmitted) {
                 return TextField(
                   controller: controller,
                   focusNode: focusNode,
                   decoration: InputDecoration(
                     hintText: 'Search or select organization...',
                     border: const OutlineInputBorder(),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    suffixIcon: controller.text.isNotEmpty 
-                      ? IconButton(
-                          icon: const Icon(Icons.clear, size: 16),
-                          onPressed: () {
-                            controller.clear();
-                            notifier.selectOrganization(null);
-                          },
-                        )
-                      : null,
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    suffixIcon: controller.text.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear, size: 16),
+                            onPressed: () {
+                              controller.clear();
+                              notifier.selectOrganization(null);
+                            },
+                          )
+                        : null,
                   ),
                 );
               },
@@ -247,8 +366,11 @@ class _BulkSendScreenState extends ConsumerState<BulkSendScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: const [
-                    Text('Upload CSV / Excel', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                    Text('Support .csv, .xls, .xlsx', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                    Text('Upload CSV / Excel',
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 16)),
+                    Text('Support .csv, .xls, .xlsx',
+                        style: TextStyle(color: Colors.grey, fontSize: 12)),
                   ],
                 ),
               ),
@@ -272,29 +394,34 @@ class _BulkSendScreenState extends ConsumerState<BulkSendScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Manual Entry', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const Text('Manual Entry',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             const SizedBox(height: 12),
             Row(
               children: [
                 Expanded(
                   child: TextField(
                     controller: _nameController,
-                    decoration: const InputDecoration(hintText: 'Name', isDense: true),
+                    decoration:
+                        const InputDecoration(hintText: 'Name', isDense: true),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: TextField(
                     controller: _phoneController,
-                    decoration: const InputDecoration(hintText: 'Mobile', isDense: true),
+                    decoration: const InputDecoration(
+                        hintText: 'Mobile', isDense: true),
                     keyboardType: TextInputType.phone,
                   ),
                 ),
                 const SizedBox(width: 12),
                 IconButton(
                   onPressed: () {
-                    if (_nameController.text.isNotEmpty && _phoneController.text.isNotEmpty) {
-                      notifier.addRecipient(_nameController.text, _phoneController.text);
+                    if (_nameController.text.isNotEmpty &&
+                        _phoneController.text.isNotEmpty) {
+                      notifier.addRecipient(
+                          _nameController.text, _phoneController.text);
                       _nameController.clear();
                       _phoneController.clear();
                     }
@@ -309,7 +436,8 @@ class _BulkSendScreenState extends ConsumerState<BulkSendScreen> {
     );
   }
 
-  Widget _buildTemplateSelector(BulkMessagingState state, BulkMessagingNotifier notifier) {
+  Widget _buildTemplateSelector(
+      BulkMessagingState state, BulkMessagingNotifier notifier) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(12),
@@ -319,10 +447,12 @@ class _BulkSendScreenState extends ConsumerState<BulkSendScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Message Template', style: TextStyle(fontWeight: FontWeight.bold)),
+                const Text('Message Template',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
                 IconButton(
                   onPressed: () => _showAddTemplateBottomSheet(context),
-                  icon: const Icon(Icons.add_circle_outline, color: AppColors.orange, size: 20),
+                  icon: const Icon(Icons.add_circle_outline,
+                      color: AppColors.orange, size: 20),
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
                   tooltip: 'Add New Template',
@@ -332,37 +462,42 @@ class _BulkSendScreenState extends ConsumerState<BulkSendScreen> {
             const SizedBox(height: 8),
             Autocomplete<SmsTemplateModel>(
               displayStringForOption: (option) => option.templateName,
-              initialValue: TextEditingValue(text: state.selectedTemplate?.templateName ?? ''),
+              initialValue: TextEditingValue(
+                  text: state.selectedTemplate?.templateName ?? ''),
               optionsBuilder: (TextEditingValue textEditingValue) {
                 if (textEditingValue.text == '') {
                   return state.templates;
                 }
                 return state.templates.where((t) {
-                  return t.templateName.toLowerCase().contains(textEditingValue.text.toLowerCase());
+                  return t.templateName
+                      .toLowerCase()
+                      .contains(textEditingValue.text.toLowerCase());
                 });
               },
               onSelected: (option) {
                 notifier.selectTemplate(option);
               },
-              fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+              fieldViewBuilder:
+                  (context, controller, focusNode, onFieldSubmitted) {
                 return TextField(
                   controller: controller,
                   focusNode: focusNode,
                   decoration: InputDecoration(
                     hintText: 'Search or select template...',
                     border: const OutlineInputBorder(),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    suffixIcon: controller.text.isNotEmpty 
-                      ? IconButton(
-                          icon: const Icon(Icons.clear, size: 16),
-                          onPressed: () {
-                            controller.clear();
-                            notifier.selectTemplate(null);
-                            _messageController.clear();
-                            notifier.updateMessage('');
-                          },
-                        )
-                      : null,
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    suffixIcon: controller.text.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear, size: 16),
+                            onPressed: () {
+                              controller.clear();
+                              notifier.selectTemplate(null);
+                              _messageController.clear();
+                              notifier.updateMessage('');
+                            },
+                          )
+                        : null,
                   ),
                 );
               },
@@ -373,7 +508,8 @@ class _BulkSendScreenState extends ConsumerState<BulkSendScreen> {
     );
   }
 
-  Widget _buildMessageComposer(BulkMessagingState state, BulkMessagingNotifier notifier) {
+  Widget _buildMessageComposer(
+      BulkMessagingState state, BulkMessagingNotifier notifier) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -383,12 +519,17 @@ class _BulkSendScreenState extends ConsumerState<BulkSendScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Message Body', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                const Text('Message Body',
+                    style:
+                        TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                 TextButton(
                   onPressed: () {
                     final pos = _messageController.selection.baseOffset;
                     final text = _messageController.text;
-                    final newText = text.replaceRange(pos != -1 ? pos : text.length, pos != -1 ? pos : text.length, '{name}');
+                    final newText = text.replaceRange(
+                        pos != -1 ? pos : text.length,
+                        pos != -1 ? pos : text.length,
+                        '{name}');
                     _messageController.text = newText;
                     notifier.updateMessage(newText);
                   },
@@ -417,7 +558,8 @@ class _BulkSendScreenState extends ConsumerState<BulkSendScreen> {
     );
   }
 
-  Widget _buildRecipientList(BulkMessagingState state, BulkMessagingNotifier notifier) {
+  Widget _buildRecipientList(
+      BulkMessagingState state, BulkMessagingNotifier notifier) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -432,7 +574,8 @@ class _BulkSendScreenState extends ConsumerState<BulkSendScreen> {
           const Center(
             child: Padding(
               padding: EdgeInsets.all(20),
-              child: Text('No recipients added yet', style: TextStyle(color: Colors.grey)),
+              child: Text('No recipients added yet',
+                  style: TextStyle(color: Colors.grey)),
             ),
           )
         else
@@ -443,11 +586,13 @@ class _BulkSendScreenState extends ConsumerState<BulkSendScreen> {
             itemBuilder: (context, index) {
               final r = state.recipients[index];
               return ListTile(
-                leading: const CircleAvatar(child: Icon(Icons.person, size: 20)),
+                leading:
+                    const CircleAvatar(child: Icon(Icons.person, size: 20)),
                 title: Text(r.name),
                 subtitle: Text(r.phone),
                 trailing: IconButton(
-                  icon: const Icon(Icons.remove_circle_outline, color: Colors.red, size: 20),
+                  icon: const Icon(Icons.remove_circle_outline,
+                      color: Colors.red, size: 20),
                   onPressed: () => notifier.removeRecipient(index),
                 ),
               );
@@ -463,7 +608,7 @@ class _BulkSendScreenState extends ConsumerState<BulkSendScreen> {
       barrierDismissible: false,
       builder: (context) => const BulkProgressDialog(),
     );
-    
+
     // Start sending
     ref.read(bulkMessagingProvider.notifier).sendBulkMessages();
   }
@@ -492,13 +637,27 @@ class _BulkSendScreenState extends ConsumerState<BulkSendScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Add Organization', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              const Text('Add Organization',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
               const SizedBox(height: 20),
-              TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'Organization Name*', border: OutlineInputBorder())),
+              TextField(
+                  controller: nameCtrl,
+                  decoration: const InputDecoration(
+                      labelText: 'Organization Name*',
+                      border: OutlineInputBorder())),
               const SizedBox(height: 12),
-              TextField(controller: emailCtrl, decoration: const InputDecoration(labelText: 'Email Address', border: OutlineInputBorder())),
+              TextField(
+                  controller: emailCtrl,
+                  decoration: const InputDecoration(
+                      labelText: 'Email Address',
+                      border: OutlineInputBorder())),
               const SizedBox(height: 12),
-              TextField(controller: addrCtrl, decoration: const InputDecoration(labelText: 'Office Address', border: OutlineInputBorder()), maxLines: 2),
+              TextField(
+                  controller: addrCtrl,
+                  decoration: const InputDecoration(
+                      labelText: 'Office Address',
+                      border: OutlineInputBorder()),
+                  maxLines: 2),
               const SizedBox(height: 20),
               // const Text('Organization Logo', style: TextStyle(fontWeight: FontWeight.bold)),
               // const SizedBox(height: 8),
@@ -537,14 +696,17 @@ class _BulkSendScreenState extends ConsumerState<BulkSendScreen> {
                 onPressed: () async {
                   if (nameCtrl.text.isNotEmpty) {
                     try {
-                      await ref.read(bulkMessagingProvider.notifier).createOrganization(
-                        name: nameCtrl.text,
-                        email: emailCtrl.text,
-                        address: addrCtrl.text,
-                        logo: selectedLogo,
-                      );
+                      await ref
+                          .read(bulkMessagingProvider.notifier)
+                          .createOrganization(
+                            name: nameCtrl.text,
+                            email: emailCtrl.text,
+                            address: addrCtrl.text,
+                            logo: selectedLogo,
+                          );
                       if (context.mounted) {
-                        MessageHelper.showSuccess(context, 'Organization created successfully!');
+                        MessageHelper.showSuccess(
+                            context, 'Organization created successfully!');
                         Navigator.pop(context);
                       }
                     } catch (e) {
@@ -584,9 +746,13 @@ class _BulkSendScreenState extends ConsumerState<BulkSendScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Add Message Template', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            const Text('Add Message Template',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
             const SizedBox(height: 20),
-            TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'Template Name*', border: OutlineInputBorder())),
+            TextField(
+                controller: nameCtrl,
+                decoration: const InputDecoration(
+                    labelText: 'Template Name*', border: OutlineInputBorder())),
             const SizedBox(height: 12),
             TextField(
               controller: msgCtrl,
@@ -603,9 +769,12 @@ class _BulkSendScreenState extends ConsumerState<BulkSendScreen> {
               onPressed: () async {
                 if (nameCtrl.text.isNotEmpty && msgCtrl.text.isNotEmpty) {
                   try {
-                    await ref.read(bulkMessagingProvider.notifier).createTemplate(nameCtrl.text, msgCtrl.text);
+                    await ref
+                        .read(bulkMessagingProvider.notifier)
+                        .createTemplate(nameCtrl.text, msgCtrl.text);
                     if (context.mounted) {
-                      MessageHelper.showSuccess(context, 'Template saved successfully!');
+                      MessageHelper.showSuccess(
+                          context, 'Template saved successfully!');
                       Navigator.pop(context);
                     }
                   } catch (e) {
@@ -645,8 +814,10 @@ class BulkProgressDialog extends ConsumerWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              Text('Sent: ${state.sentCount}', style: const TextStyle(color: Colors.green)),
-              Text('Failed: ${state.failedCount}', style: const TextStyle(color: Colors.red)),
+              Text('Sent: ${state.sentCount}',
+                  style: const TextStyle(color: Colors.green)),
+              Text('Failed: ${state.failedCount}',
+                  style: const TextStyle(color: Colors.red)),
             ],
           ),
           const SizedBox(height: 16),
@@ -684,12 +855,12 @@ class BulkProgressDialog extends ConsumerWidget {
       ),
       actions: [
         TextButton(
-          onPressed: state.isSending 
-            ? null 
-            : () {
-                ref.read(bulkMessagingProvider.notifier).reset();
-                Navigator.pop(context);
-              },
+          onPressed: state.isSending
+              ? null
+              : () {
+                  ref.read(bulkMessagingProvider.notifier).reset();
+                  Navigator.pop(context);
+                },
           child: const Text('Close'),
         ),
       ],

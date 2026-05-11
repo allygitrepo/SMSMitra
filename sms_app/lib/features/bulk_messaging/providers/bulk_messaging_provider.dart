@@ -7,6 +7,8 @@ import '../../../data/services/sms_api_service.dart';
 import '../../../data/services/storage_service.dart';
 import '../../../data/services/sms_service.dart';
 import '../../../core/utils/logger.dart';
+// import '../../../data/models/telegram_contact_model.dart';
+// import '../../../data/services/telegram_service.dart';
 
 class BulkMessagingState {
   final List<OrganizationModel> organizations;
@@ -19,6 +21,8 @@ class BulkMessagingState {
   final bool isSending;
   final int sentCount;
   final int failedCount;
+  final String channel;
+  // final List<TelegramContactModel> telegramContacts;
 
   BulkMessagingState({
     this.organizations = const [],
@@ -31,6 +35,8 @@ class BulkMessagingState {
     this.isSending = false,
     this.sentCount = 0,
     this.failedCount = 0,
+    this.channel = 'sms',
+    // this.telegramContacts = const [],
   });
 
   BulkMessagingState copyWith({
@@ -44,6 +50,8 @@ class BulkMessagingState {
     bool? isSending,
     int? sentCount,
     int? failedCount,
+    String? channel,
+    // List<TelegramContactModel>? telegramContacts,
     bool clearOrg = false,
     bool clearTemplate = false,
   }) {
@@ -58,6 +66,8 @@ class BulkMessagingState {
       isSending: isSending ?? this.isSending,
       sentCount: sentCount ?? this.sentCount,
       failedCount: failedCount ?? this.failedCount,
+      channel: channel ?? this.channel,
+      // telegramContacts: telegramContacts ?? this.telegramContacts,
     );
   }
 }
@@ -84,6 +94,24 @@ class BulkMessagingNotifier extends StateNotifier<BulkMessagingState> {
     } catch (e) {
       state = state.copyWith(isLoading: false);
     }
+  }
+
+  /* Future<void> fetchTelegramContacts() async {
+    try {
+      final contacts = await TelegramService().getContacts(
+        orgCode: state.selectedOrg?.orgCode,
+      );
+      state = state.copyWith(telegramContacts: contacts);
+    } catch (e) {
+      logger.e('Failed to fetch telegram contacts: $e');
+    }
+  } */
+
+  void setChannel(String channel) {
+    state = state.copyWith(channel: channel, recipients: []); // clear recipients on channel change
+    /* if (channel == 'telegram') {
+      fetchTelegramContacts();
+    } */
   }
 
   void selectOrganization(OrganizationModel? org) {
@@ -162,6 +190,13 @@ class BulkMessagingNotifier extends StateNotifier<BulkMessagingState> {
     state = state.copyWith(recipients: [...state.recipients, newRecipient]);
   }
 
+  /* void addTelegramRecipient(dynamic contact) {
+    if (state.recipients.any((r) => r.phone == contact.telegramChatId)) return;
+    
+    final newRecipient = BulkRecipientModel(name: contact.name, phone: contact.telegramChatId);
+    state = state.copyWith(recipients: [...state.recipients, newRecipient]);
+  } */
+
   void removeRecipient(int index) {
     final newList = List<BulkRecipientModel>.from(state.recipients);
     newList.removeAt(index);
@@ -233,6 +268,37 @@ class BulkMessagingNotifier extends StateNotifier<BulkMessagingState> {
 
     final recipients = List<BulkRecipientModel>.from(state.recipients);
     
+    /* if (state.channel == 'telegram') {
+      try {
+        final tgContacts = recipients.map((r) => TelegramContactModel(
+          id: 0, 
+          userId: user.id!, 
+          name: r.name, 
+          telegramChatId: r.phone
+        )).toList();
+        
+        await TelegramService().bulkSend(
+          message: state.message,
+          contacts: tgContacts,
+          orgCode: state.selectedOrg?.orgCode,
+        );
+        
+        // For frontend UI simulation, mark all as sent so the dialog looks complete
+        // Background server process will actually do the sending
+        for (var r in recipients) {
+          r.status = RecipientStatus.sent;
+        }
+        state = state.copyWith(recipients: recipients, sentCount: recipients.length, isSending: false);
+      } catch (e) {
+        for (var r in recipients) {
+          r.status = RecipientStatus.failed;
+          r.error = e.toString();
+        }
+        state = state.copyWith(recipients: recipients, failedCount: recipients.length, isSending: false);
+      }
+      return;
+    } */
+
     for (int i = 0; i < recipients.length; i++) {
       final recipient = recipients[i];
       recipient.status = RecipientStatus.sending;

@@ -12,6 +12,7 @@ class ReportsState {
   final DateTime? endDate;
   final String? simId;
   final String? orgCode;
+  final String? channel;
 
   ReportsState({
     this.stats = const {'pending': 0, 'sent': 0, 'failed': 0},
@@ -22,6 +23,7 @@ class ReportsState {
     this.endDate,
     this.simId,
     this.orgCode,
+    this.channel,
   });
 
   ReportsState copyWith({
@@ -33,8 +35,10 @@ class ReportsState {
     DateTime? endDate,
     String? simId,
     String? orgCode,
+    String? channel,
     bool clearSim = false,
     bool clearOrg = false,
+    bool clearChannel = false,
   }) {
     return ReportsState(
       stats: stats ?? this.stats,
@@ -45,6 +49,7 @@ class ReportsState {
       endDate: endDate ?? this.endDate,
       simId: clearSim ? null : (simId ?? this.simId),
       orgCode: clearOrg ? null : (orgCode ?? this.orgCode),
+      channel: clearChannel ? null : (channel ?? this.channel),
     );
   }
 }
@@ -81,6 +86,7 @@ class ReportsNotifier extends StateNotifier<ReportsState> {
         endDate: state.endDate,
         simId: state.simId,
         orgCode: state.orgCode,
+        channel: state.channel,
       );
 
       state = state.copyWith(
@@ -112,6 +118,15 @@ class ReportsNotifier extends StateNotifier<ReportsState> {
       state = state.copyWith(clearOrg: true);
     } else {
       state = state.copyWith(orgCode: orgCode);
+    }
+    fetchReports();
+  }
+
+  void updateChannelFilter(String? channel) {
+    if (channel == 'all') {
+      state = state.copyWith(clearChannel: true);
+    } else {
+      state = state.copyWith(channel: channel);
     }
     fetchReports();
   }

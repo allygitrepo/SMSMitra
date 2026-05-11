@@ -207,6 +207,38 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
               ),
               child: DropdownButtonHideUnderline(
                 child: DropdownButton<String>(
+                  value: state.channel ?? 'all',
+                  isDense: true,
+                  dropdownColor: theme.cardColor,
+                  icon: Icon(Icons.filter_list, color: theme.primaryColor, size: 16),
+                  items: const [
+                    DropdownMenuItem(value: 'all', child: Text('All Channels')),
+                    DropdownMenuItem(value: 'sms', child: Text('SMS')),
+                    // DropdownMenuItem(value: 'telegram', child: Text('Telegram')),
+                  ],
+                  onChanged: (val) {
+                    ref.read(reportsProvider.notifier).updateChannelFilter(val);
+                  },
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: theme.textTheme.bodyMedium?.color,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          SizedBox(
+            height: 45,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                border: Border.all(color: theme.dividerColor),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
                   value: state.simId ?? 'all',
                   isDense: true,
                   dropdownColor: theme.cardColor,
@@ -314,6 +346,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
             DataColumn(label: Text('Date')),
             DataColumn(label: Text('Receiver')),
             DataColumn(label: Text('Message')),
+            DataColumn(label: Text('Channel')),
             DataColumn(label: Text('SIM')),
             DataColumn(label: Text('Org')),
             DataColumn(label: Text('Status')),
@@ -330,6 +363,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                 simLabel = sim.carrierName;
               } catch (_) {}
             });
+            
+            final channel = log['channel']?.toString().toUpperCase() ?? 'SMS';
 
             return DataRow(
               cells: [
@@ -344,6 +379,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                     ),
                   ),
                 ),
+                DataCell(Text(channel)),
                 DataCell(Text(simLabel)),
                 DataCell(Text(log['orgCode'] ?? '-')),
                 DataCell(_buildStatusChip(log['status'])),
