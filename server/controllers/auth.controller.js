@@ -1,4 +1,6 @@
+const { Op } = require('sequelize');
 const User = require('../models/user.model');
+const SimDetail = require('../models/simdetail.model');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
@@ -33,8 +35,10 @@ exports.register = async (req, res) => {
         id: user.id,
         fullName: user.fullName,
         email: user.email,
+        phoneNumber: user.phoneNumber,
         deviceCode: user.deviceCode
-      }
+      },
+      hasSimDetails: false // New user won't have sim details yet
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -44,7 +48,15 @@ exports.register = async (req, res) => {
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
-    const user = await User.findOne({ where: { email } });
+    // Find user by email OR phoneNumber
+    const user = await User.findOne({
+      where: {
+        [Op.or]: [
+          { email: email },
+          { phoneNumber: email }
+        ]
+      }
+    });
 
     if (!user || !(await bcrypt.compare(password, user.password))) {
       return res.status(401).json({ message: 'Invalid credentials' });
@@ -52,14 +64,18 @@ exports.login = async (req, res) => {
 
     const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRE });
 
+    const simDetails = await SimDetail.findOne({ where: { userId: user.id } });
+
     res.json({
       token,
       user: {
         id: user.id,
         fullName: user.fullName,
         email: user.email,
+        phoneNumber: user.phoneNumber,
         deviceCode: user.deviceCode
-      }
+      },
+      hasSimDetails: !!simDetails
     });
   } catch (error) {
     res.status(500).json({ message: error.message });

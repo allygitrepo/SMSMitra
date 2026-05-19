@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:sms_app/data/services/storage_service.dart';
 import '../../core/helpers/validation_helper.dart';
 import '../../core/helpers/snackbar_helper.dart';
 import '../../core/routes/app_router.dart';
@@ -26,14 +27,14 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmController = TextEditingController();
-  
+
   bool _isLoading = false;
   final _authService = AuthService();
 
   Future<void> _handleRegister() async {
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
-      
+
       final user = UserModel(
         fullName: _nameController.text.trim(),
         email: _emailController.text.trim(),
@@ -42,15 +43,21 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       );
 
       final result = await _authService.register(user);
-      
+
       if (mounted) setState(() => _isLoading = false);
 
       if (result['success'] && mounted) {
         ref.read(userProvider.notifier).refresh();
-        MessageHelper.showSuccess(context, 'Registration successful! Device Code: ${result['deviceCode']}');
-        context.go(AppRouter.login);
+        MessageHelper.showSuccess(context, 'Registration successful!');
+
+        // Mark as logged in locally
+        await StorageService.setLoggedIn(true);
+
+        // Go straight to mandatory SIM setup
+        context.go(AppRouter.setupSim);
       } else if (mounted) {
-        MessageHelper.showError(context, result['message'] ?? 'Registration failed. Please try again.');
+        MessageHelper.showError(context,
+            result['message'] ?? 'Registration failed. Please try again.');
       }
     }
   }
@@ -80,7 +87,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   style: TextStyle(color: Colors.grey),
                 ),
                 const SizedBox(height: 32),
-                
                 CustomTextField(
                   label: 'Full Name',
                   hint: 'Enter your name',
@@ -88,7 +94,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   controller: _nameController,
                   validator: ValidationHelper.validateName,
                 ),
-                
                 CustomTextField(
                   label: 'Email Address',
                   hint: 'Enter your email',
@@ -97,7 +102,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   keyboardType: TextInputType.emailAddress,
                   validator: ValidationHelper.validateEmail,
                 ),
-                
                 CustomTextField(
                   label: 'Phone Number',
                   hint: 'Enter your phone number',
@@ -106,7 +110,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   keyboardType: TextInputType.phone,
                   validator: ValidationHelper.validatePhone,
                 ),
-                
                 CustomTextField(
                   label: 'Password',
                   hint: 'Enter password',
@@ -115,7 +118,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   isPassword: true,
                   validator: ValidationHelper.validatePassword,
                 ),
-                
                 CustomTextField(
                   label: 'Confirm Password',
                   hint: 'Confirm your password',
@@ -123,17 +125,16 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   controller: _confirmController,
                   isPassword: true,
                   validator: (val) => ValidationHelper.validateConfirmPassword(
-                    val, _passwordController.text,
+                    val,
+                    _passwordController.text,
                   ),
                 ),
-                
                 const SizedBox(height: 12),
                 GradientButton(
                   text: 'Register Now',
                   onPressed: _handleRegister,
                   isLoading: _isLoading,
                 ),
-                
                 const SizedBox(height: 24),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,

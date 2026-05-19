@@ -127,12 +127,14 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     final simsAsync = ref.watch(simsProvider);
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(vertical: 12),
       color: theme.cardColor,
-      child: Row(
-        children: [
-          Expanded(
-            child: SizedBox(
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: Row(
+          children: [
+            SizedBox(
               height: 45,
               child: InkWell(
                 onTap: () async {
@@ -193,8 +195,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                 ),
               ),
             ),
-          ),
-          const SizedBox(width: 12),
+            const SizedBox(width: 12),
           _buildOrgFilter(context, state),
           const SizedBox(width: 12),
           SizedBox(
@@ -214,7 +215,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                   items: const [
                     DropdownMenuItem(value: 'all', child: Text('All Channels')),
                     DropdownMenuItem(value: 'sms', child: Text('SMS')),
-                    // DropdownMenuItem(value: 'telegram', child: Text('Telegram')),
+                    DropdownMenuItem(value: 'whatsapp', child: Text('WhatsApp')),
                   ],
                   onChanged: (val) {
                     ref.read(reportsProvider.notifier).updateChannelFilter(val);
@@ -290,8 +291,9 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildStatCards(Map<String, int> stats) {
     return Padding(
@@ -382,7 +384,24 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                 DataCell(Text(channel)),
                 DataCell(Text(simLabel)),
                 DataCell(Text(log['orgCode'] ?? '-')),
-                DataCell(_buildStatusChip(log['status'])),
+                DataCell(
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _buildStatusChip(log['status']),
+                      if (log['status'] == 'failed' && log['errorMessage'] != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Text(
+                            log['errorMessage'],
+                            style: const TextStyle(fontSize: 9, color: Colors.red),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
               ],
             );
           }).toList(),

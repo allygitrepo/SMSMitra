@@ -5,10 +5,10 @@ import '../../../data/models/template_model.dart';
 import '../../../data/models/bulk_recipient_model.dart';
 import '../../../data/services/sms_api_service.dart';
 import '../../../data/services/storage_service.dart';
+import '../../../data/services/storage_service.dart';
 import '../../../data/services/sms_service.dart';
+import '../../../data/services/whatsapp_sms_service.dart';
 import '../../../core/utils/logger.dart';
-// import '../../../data/models/telegram_contact_model.dart';
-// import '../../../data/services/telegram_service.dart';
 
 class BulkMessagingState {
   final List<OrganizationModel> organizations;
@@ -75,6 +75,7 @@ class BulkMessagingState {
 class BulkMessagingNotifier extends StateNotifier<BulkMessagingState> {
   final _apiService = SmsApiService();
   final _smsService = SmsService();
+  final _whatsappService = WhatsAppSmsService();
 
   BulkMessagingNotifier() : super(BulkMessagingState());
 
@@ -269,35 +270,52 @@ class BulkMessagingNotifier extends StateNotifier<BulkMessagingState> {
     final recipients = List<BulkRecipientModel>.from(state.recipients);
     
     /* if (state.channel == 'telegram') {
+      ...
+    } */
+
+    if (state.channel == 'whatsapp') {
       try {
-        final tgContacts = recipients.map((r) => TelegramContactModel(
-          id: 0, 
-          userId: user.id!, 
-          name: r.name, 
-          telegramChatId: r.phone
-        )).toList();
-        
-        await TelegramService().bulkSend(
-          message: state.message,
-          contacts: tgContacts,
+        final waMessages = recipients.map((r) => {
+          'number': r.phone,
+          'message': state.message.replaceAll('{name}', r.name),
+        }).toList();
+
+        // Mark as sending first
+        for (var r in recipients) {
+          r.status = RecipientStatus.sending;
+        }
+        state = state.copyWith(recipients: [...recipients]);
+
+        await _whatsappService.sendBulkMessages(
+          messages: waMessages,
+          sessionId: 'user_1',
+          userId: user.id.toString(),
           orgCode: state.selectedOrg?.orgCode,
         );
-        
-        // For frontend UI simulation, mark all as sent so the dialog looks complete
-        // Background server process will actually do the sending
+
+        // Mark all as sent (successfully queued)
         for (var r in recipients) {
           r.status = RecipientStatus.sent;
         }
-        state = state.copyWith(recipients: recipients, sentCount: recipients.length, isSending: false);
+        state = state.copyWith(
+          recipients: [...recipients],
+          sentCount: recipients.length,
+          isSending: false,
+        );
       } catch (e) {
+        // Mark all as failed if the gateway call fails
         for (var r in recipients) {
           r.status = RecipientStatus.failed;
           r.error = e.toString();
         }
-        state = state.copyWith(recipients: recipients, failedCount: recipients.length, isSending: false);
+        state = state.copyWith(
+          recipients: [...recipients],
+          failedCount: recipients.length,
+          isSending: false,
+        );
       }
       return;
-    } */
+    }
 
     for (int i = 0; i < recipients.length; i++) {
       final recipient = recipients[i];

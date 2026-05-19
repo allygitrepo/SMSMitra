@@ -272,18 +272,24 @@ exports.updateSmsStatus = async (req, res) => {
 
 exports.createManualLog = async (req, res) => {
   try {
-    const { userId, phoneNumber, message, simId, status, orgCode } = req.body;
+    const { userId, phoneNumber, message, simId, status, orgCode, channel, errorMessage } = req.body;
+    console.log('[LOGGING] Attempting to create log:', { userId, phoneNumber, channel, status, errorMessage });
+    
     const log = await SmsLog.create({
-      userId,
+      userId: parseInt(userId) || userId,
       receiverNumber: phoneNumber,
       message,
       simId,
       status,
-      orgCode
+      orgCode,
+      channel: channel || 'sms',
+      errorMessage: errorMessage
     });
+    
+    console.log('[LOGGING] Success: Log created with ID', log.id);
 
     // Increment usage on SIM for manual sends
-    if (status === 'sent' && simId) {
+    if (status === 'sent' && simId && simId !== 'whatsapp') {
       const sim = await SimDetail.findOne({ where: { userId, simId } });
       if (sim) {
         sim.currentUsage += 1;
@@ -296,6 +302,10 @@ exports.createManualLog = async (req, res) => {
 
     res.status(201).json(log);
   } catch (error) {
+    console.error('[LOGGING] Error creating log:', error.message);
+    if (error.name === 'SequelizeDatabaseError') {
+      console.error('[LOGGING] Database Error Detail:', error.parent.sqlMessage);
+    }
     res.status(500).json({ message: error.message });
   }
 };

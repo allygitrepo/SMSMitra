@@ -36,8 +36,7 @@ const SmsLog = sequelize.define('SmsLog', {
     allowNull: true,
   },
   channel: {
-    // type: DataTypes.ENUM('sms', 'telegram'),
-    type: DataTypes.ENUM('sms'),
+    type: DataTypes.ENUM('sms', 'whatsapp'),
     defaultValue: 'sms',
   },
   /* telegramChatId: {

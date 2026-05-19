@@ -11,6 +11,7 @@ import '../../../shared/widgets/custom_text_field.dart';
 import '../../../shared/widgets/gradient_button.dart';
 import '../../../core/theme/app_colors.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../../data/services/whatsapp_sms_service.dart';
 
 class BulkSendScreen extends ConsumerStatefulWidget {
   const BulkSendScreen({super.key});
@@ -24,12 +25,14 @@ class _BulkSendScreenState extends ConsumerState<BulkSendScreen> {
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _messageController = TextEditingController();
   bool _isManualEntry = false;
+  final _whatsappService = WhatsAppSmsService();
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(bulkMessagingProvider.notifier).init();
+      _whatsappService.init(); // Initialize WhatsApp service
     });
   }
 
@@ -195,13 +198,39 @@ class _BulkSendScreenState extends ConsumerState<BulkSendScreen> {
             ),
             const SizedBox(height: 8),
             SegmentedButton<String>(
-              segments: const [
-                ButtonSegment(value: 'sms', label: Text('SMS')),
-                // ButtonSegment(value: 'telegram', label: Text('Telegram')),
+              style: SegmentedButton.styleFrom(
+                selectedBackgroundColor: AppColors.orange,
+                selectedForegroundColor: Colors.white,
+                foregroundColor: Colors.grey.shade600,
+              ),
+              segments: [
+                const ButtonSegment(
+                  value: 'sms',
+                  label: Text('SMS'),
+                  icon: Icon(Icons.sms_outlined),
+                ),
+                ButtonSegment(
+                  value: 'whatsapp',
+                  label: const Text('WhatsApp'),
+                  icon: Image.asset(
+                    'assets/whatsapp.webp',
+                    height: 20,
+                    color: state.channel == 'whatsapp'
+                        ? Colors.white
+                        : Colors.grey.shade600,
+                  ),
+                ),
               ],
               selected: {state.channel},
               onSelectionChanged: (Set<String> newSelection) {
-                notifier.setChannel(newSelection.first);
+                final channel = newSelection.first;
+                if (channel == 'whatsapp' && !_whatsappService.isLinked()) {
+                  MessageHelper.showWarning(
+                    context,
+                    'WhatsApp is not linked. Please link it in Settings first.',
+                  );
+                }
+                notifier.setChannel(channel);
               },
             ),
           ],
@@ -846,7 +875,16 @@ class BulkProgressDialog extends ConsumerWidget {
                   dense: true,
                   leading: Icon(icon, color: color, size: 20),
                   title: Text(r.name),
-                  subtitle: Text(r.phone),
+                  subtitle: Text(
+                    r.status == RecipientStatus.failed && r.error != null
+                        ? '${r.phone}\nError: ${r.error}'
+                        : r.phone,
+                    style: TextStyle(
+                      color: r.status == RecipientStatus.failed
+                          ? Colors.red.shade700
+                          : null,
+                    ),
+                  ),
                 );
               },
             ),

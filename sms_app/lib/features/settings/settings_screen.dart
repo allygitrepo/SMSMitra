@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import '../../core/helpers/snackbar_helper.dart';
 import '../../core/routes/app_router.dart';
 import '../../data/models/sim_model.dart';
 import '../../data/models/settings_model.dart';
 import '../../shared/widgets/gradient_button.dart';
 import 'settings_provider.dart';
+import '../../data/services/whatsapp_sms_service.dart';
+import 'dart:async';
+import 'dart:convert';
 
 /// Screen to manage SIM setup, daily limits, and theme settings.
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -25,13 +29,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _isEditing = false;
   bool _hasSaved = false; // tracks if user saved during first-time setup
   late TextEditingController _limitController;
+  final WhatsAppSmsService _whatsappService = WhatsAppSmsService();
+  bool _isWhatsappLinked = false;
+  String? _waQrCode;
+  String? _waStatusMessage;
+  Timer? _waPollingTimer;
+  bool _isBottomSheetOpen = false;
+  final ValueNotifier<String?> _qrNotifier = ValueNotifier(null);
+  final ValueNotifier<String?> _waStatusNotifier = ValueNotifier(null);
 
   @override
   void initState() {
     super.initState();
     _limitController = TextEditingController();
     _initDetection();
-    
+
     // Initial check for editing mode
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final settings = ref.read(settingsProvider);
@@ -40,29 +52,201 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         setState(() => _isEditing = true);
       }
     });
+
+    _initWhatsApp();
+  }
+
+  Future<void> _initWhatsApp() async {
+    await _whatsappService.init();
+    if (mounted) {
+      setState(() {
+        _isWhatsappLinked = _whatsappService.isLinked();
+      });
+      if (_isWhatsappLinked) {
+        _checkWhatsAppStatus();
+      }
+    }
+  }
+
+  Future<void> _checkWhatsAppStatus() async {
+    try {
+      final status = await _whatsappService.getStatus('user_1');
+      if (mounted) {
+        setState(() {
+          _isWhatsappLinked = status['connected'] == true;
+          if (status['qr'] != null) {
+            _waQrCode = status['qr'];
+            _qrNotifier.value = _waQrCode;
+            _waStatusMessage = 'Scan QR Code to link';
+            _waStatusNotifier.value = _waStatusMessage;
+            if (!_isBottomSheetOpen && !_isWhatsappLinked) {
+              _showQrBottomSheet();
+            }
+          } else if (status['status'] == 'connecting') {
+            _waStatusMessage = 'Connecting...';
+            _waStatusNotifier.value = _waStatusMessage;
+          } else if (status['status'] == 'disconnected') {
+            _waStatusMessage = 'Disconnected. Tap Link to retry.';
+            _waStatusNotifier.value = _waStatusMessage;
+            _isWhatsappLinked = false;
+            _whatsappService.setLinked(false);
+            if (_isBottomSheetOpen) Navigator.pop(context);
+          } else {
+            _waQrCode = null;
+            _qrNotifier.value = null;
+            _waStatusMessage = 'Connected as ${status['phone'] ?? 'WhatsApp'}';
+            _waStatusNotifier.value = _waStatusMessage;
+            _isWhatsappLinked = true;
+            _whatsappService.setLinked(true);
+            _waPollingTimer?.cancel();
+            if (_isBottomSheetOpen) Navigator.pop(context);
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint('WhatsApp status error: $e');
+    }
+  }
+
+  void _startPollingWhatsAppStatus() {
+    _waPollingTimer?.cancel();
+    _waPollingTimer = Timer.periodic(const Duration(seconds: 2), (_) {
+      _checkWhatsAppStatus();
+    });
+  }
+
+  Future<void> _linkWhatsApp() async {
+    setState(() {
+      _waStatusMessage = 'Starting session...';
+    });
+    try {
+      await _whatsappService.startSession('user_1');
+      _startPollingWhatsAppStatus();
+    } catch (e) {
+      MessageHelper.showError(context, 'Failed to start WhatsApp: $e');
+    }
+  }
+
+  Future<void> _unlinkWhatsApp() async {
+    _waPollingTimer?.cancel();
+    if (_isBottomSheetOpen) Navigator.pop(context);
+    try {
+      await _whatsappService.disconnect('user_1');
+      setState(() {
+        _isWhatsappLinked = false;
+        _waQrCode = null;
+        _qrNotifier.value = null;
+        _waStatusMessage = 'Unlinked';
+        _waStatusNotifier.value = 'Unlinked';
+      });
+    } catch (e) {
+      MessageHelper.showError(context, 'Failed to unlink WhatsApp: $e');
+    }
+  }
+
+  void _showQrBottomSheet() {
+    _isBottomSheetOpen = true;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      enableDrag: false,
+      isDismissible: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Link WhatsApp',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Scan this QR code with your WhatsApp to connect.',
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              ValueListenableBuilder<String?>(
+                valueListenable: _qrNotifier,
+                builder: (context, qrCode, child) {
+                  if (qrCode == null) {
+                    return const SizedBox(
+                      height: 250,
+                      child: Center(child: CircularProgressIndicator()),
+                    );
+                  }
+                  return Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 10,
+                          offset: const Offset(0, 5),
+                        ),
+                      ],
+                    ),
+                    padding: const EdgeInsets.all(16),
+                    child: QrImageView(
+                      data: qrCode,
+                      version: QrVersions.auto,
+                      size: 250.0,
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 24),
+              ValueListenableBuilder<String?>(
+                valueListenable: _waStatusNotifier,
+                builder: (context, status, child) {
+                  return Text(
+                    status ?? 'Waiting for QR code...',
+                    style: const TextStyle(color: Colors.grey),
+                  );
+                },
+              ),
+              const SizedBox(height: 24),
+              GradientButton(
+                text: 'Cancel',
+                onPressed: () {
+                  _unlinkWhatsApp();
+                },
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+        );
+      },
+    ).then((_) {
+      _isBottomSheetOpen = false;
+    });
   }
 
   @override
   void dispose() {
     _limitController.dispose();
+    _waPollingTimer?.cancel();
     super.dispose();
   }
 
   Future<void> _initDetection() async {
     debugPrint('SettingsScreen: Initializing SIM detection...');
     try {
-      final sims = await ref
-          .read(settingsProvider.notifier)
-          .detectSims()
-          .timeout(
-            const Duration(seconds: 10),
-            onTimeout: () {
-              debugPrint(
-                'SettingsScreen: SIM detection timed out after 10 seconds.',
-              );
-              return [];
-            },
+      final sims =
+          await ref.read(settingsProvider.notifier).detectSims().timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          debugPrint(
+            'SettingsScreen: SIM detection timed out after 10 seconds.',
           );
+          return [];
+        },
+      );
 
       debugPrint(
         'SettingsScreen: Detection completed. SIMs found: ${sims.length}',
@@ -117,8 +301,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       },
       child: Scaffold(
         appBar: AppBar(
-          title: Text(isFirstTime ? 'Setup Your SIM Card' : (_isEditing ? 'Edit Settings' : 'App Settings')),
-          automaticallyImplyLeading: !isFirstTime, // hide back arrow during setup
+          title: Text(isFirstTime
+              ? 'Setup Your SIM Card'
+              : (_isEditing ? 'Edit Settings' : 'App Settings')),
+          automaticallyImplyLeading:
+              !isFirstTime, // hide back arrow during setup
           actions: [
             if (!isFirstTime)
               IconButton(
@@ -162,12 +349,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           children: [
                             Text(
                               'Welcome to SMSMitra!',
-                              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                              style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16),
                             ),
                             SizedBox(height: 4),
                             Text(
                               'Select and save a SIM card below to start sending messages.',
-                              style: TextStyle(color: Colors.white70, fontSize: 13),
+                              style: TextStyle(
+                                  color: Colors.white70, fontSize: 13),
                             ),
                           ],
                         ),
@@ -198,7 +389,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       children: [
                         CircularProgressIndicator(),
                         SizedBox(height: 12),
-                        Text('Detecting SIM cards…', style: TextStyle(color: Colors.grey)),
+                        Text('Detecting SIM cards…',
+                            style: TextStyle(color: Colors.grey)),
                       ],
                     ),
                   ),
@@ -217,7 +409,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     ),
                   ),
                 ),
-              
+
               if (settings.simPriority.length > 1) ...[
                 const SizedBox(height: 24),
                 _buildSectionHeader('SIM Priority (Drag to reorder)'),
@@ -230,7 +422,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ),
                 ),
               ],
-              
+
+              const SizedBox(height: 24),
+              _buildSectionHeader('WhatsApp Gateway Integration'),
+              const SizedBox(height: 12),
+              _buildWhatsAppCard(),
+
               const SizedBox(height: 32),
 
               // ── Save button (always shown during editing / first-time) ──
@@ -240,12 +437,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     padding: const EdgeInsets.only(bottom: 10),
                     child: Row(
                       children: [
-                        Icon(Icons.info_outline, color: Colors.orange.shade700, size: 18),
+                        Icon(Icons.info_outline,
+                            color: Colors.orange.shade700, size: 18),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
                             'Select at least one SIM card above to continue.',
-                            style: TextStyle(color: Colors.orange.shade700, fontSize: 13),
+                            style: TextStyle(
+                                color: Colors.orange.shade700, fontSize: 13),
                           ),
                         ),
                       ],
@@ -300,10 +499,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  Widget _buildSimItem(SimModel sim, SettingsModel settings, SettingsNotifier notifier) {
+  Widget _buildSimItem(
+      SimModel sim, SettingsModel settings, SettingsNotifier notifier) {
     final priorityIndex = settings.simPriority.indexOf(sim.id);
     final isSelected = priorityIndex != -1;
-    
+
     return Column(
       children: [
         CheckboxListTile(
@@ -337,7 +537,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           activeColor: Colors.orange,
           onChanged: (val) {
             notifier.toggleSim(sim.id, val == true);
-            MessageHelper.showSuccess(context, val == true ? '${sim.carrierName} Enabled' : '${sim.carrierName} Disabled');
+            MessageHelper.showSuccess(
+                context,
+                val == true
+                    ? '${sim.carrierName} Enabled'
+                    : '${sim.carrierName} Disabled');
           },
           secondary: Icon(
             Icons.sim_card,
@@ -363,15 +567,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      helperText: settings.dailySmsLimit == -1
-                          ? 'Unlimited'
-                          : null,
+                      helperText:
+                          settings.dailySmsLimit == -1 ? 'Unlimited' : null,
                     ),
                     onChanged: (val) {
                       final limit = int.tryParse(val);
                       if (limit != null && limit >= -1) {
                         notifier.updateLimit(limit);
-                        // Debounce or only show on significant change? 
+                        // Debounce or only show on significant change?
                         // For now just show success
                       } else if (limit != null && limit < -1) {
                         _limitController.text = '-1';
@@ -403,7 +606,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     onChanged: (val) {
                       if (val != null) {
                         notifier.updateLimitPeriod(val);
-                        MessageHelper.showSuccess(context, 'Limit period updated to $val');
+                        MessageHelper.showSuccess(
+                            context, 'Limit period updated to $val');
                       }
                     },
                   ),
@@ -441,7 +645,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           return ListTile(
             key: ValueKey(simId),
             leading: const Icon(Icons.drag_handle, color: Colors.grey),
-            title: Text(sim.carrierName, style: const TextStyle(fontWeight: FontWeight.bold)),
+            title: Text(sim.carrierName,
+                style: const TextStyle(fontWeight: FontWeight.bold)),
             subtitle: Text(sim.number),
             trailing: CircleAvatar(
               radius: 12,
@@ -473,6 +678,103 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             child: Text(message, style: const TextStyle(color: Colors.red)),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildWhatsAppCard() {
+    return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Image.asset(
+                  'assets/whatsapp.webp',
+                  height: 24,
+                ),
+                const SizedBox(width: 12),
+                const Text(
+                  'WhatsApp Linking',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                const Spacer(),
+                if (_isWhatsappLinked)
+                  const Chip(
+                    label: Text('Linked',
+                        style: TextStyle(color: Colors.white, fontSize: 12)),
+                    backgroundColor: Colors.green,
+                    padding: EdgeInsets.zero,
+                  )
+                else
+                  const Chip(
+                    label: Text('Not Linked', style: TextStyle(fontSize: 12)),
+                    padding: EdgeInsets.zero,
+                  ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (_waStatusMessage != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Text(_waStatusMessage!,
+                    style: const TextStyle(color: Colors.grey)),
+              ),
+            // Show QR if we have one and not connected
+            if (!_isWhatsappLinked && _waQrCode != null)
+              Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.orange.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Image.asset(
+                      'assets/whatsapp.webp',
+                      height: 24,
+                    ),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Text(
+                        'QR Code is ready to scan',
+                        style: TextStyle(
+                            color: Colors.orange, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: _showQrBottomSheet,
+                      child: const Text('Show QR'),
+                    ),
+                  ],
+                ),
+              ),
+            const SizedBox(height: 12),
+            if (_isWhatsappLinked)
+              ElevatedButton.icon(
+                onPressed: _unlinkWhatsApp,
+                icon: const Icon(Icons.link_off),
+                label: const Text('Unlink WhatsApp'),
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red.shade50,
+                    foregroundColor: Colors.red),
+              )
+            else
+              ElevatedButton.icon(
+                onPressed: _linkWhatsApp,
+                icon: const Icon(Icons.link),
+                label: const Text('Link WhatsApp'),
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green.shade50,
+                    foregroundColor: Colors.green),
+              ),
+          ],
+        ),
       ),
     );
   }

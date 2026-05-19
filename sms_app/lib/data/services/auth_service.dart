@@ -32,6 +32,7 @@ class AuthService {
           'success': true,
           'message': 'Registration successful',
           'deviceCode': data['user']['deviceCode'],
+          'hasSimDetails': data['hasSimDetails'] ?? false,
         };
       }
       return {'success': false, 'message': 'Registration failed'};
@@ -76,7 +77,8 @@ class AuthService {
         return {
           'success': true, 
           'message': 'Login successful',
-          'user': data['user']
+          'user': data['user'],
+          'hasSimDetails': data['hasSimDetails'] ?? false,
         };
       }
       return {'success': false, 'message': 'Invalid credentials'};

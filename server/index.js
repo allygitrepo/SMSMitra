@@ -47,9 +47,9 @@ const startServer = async () => {
   await connectDB();
 
   // Sync Database
-  // Use { force: false } in production
-  await sequelize.sync({ force: false });;
-  console.log('Database synced.');
+  // REQUIRED: alter: true is needed to add 'whatsapp' to the channel list in MySQL
+  await sequelize.sync({ alter: true });
+  console.log('Database synced with schema updates.');
 
   server.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);

@@ -41,10 +41,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         ref.read(userProvider.notifier).refresh();
         MessageHelper.showSuccess(context, result['message']);
 
-        // Navigate based on setup status
-        if (StorageService.isSimConfigured()) {
+        // Navigate based on setup status from server and local state
+        final hasSims = result['hasSimDetails'] ?? false;
+        
+        if (hasSims && StorageService.isSimConfigured()) {
           context.go(AppRouter.home);
+        } else if (!hasSims) {
+          // If no SIMs on server, go to mandatory first-time setup
+          context.go(AppRouter.setupSim);
         } else {
+          // Has SIMs on server but not configured locally (e.g. new device)
           context.go(AppRouter.settings);
         }
       } else if (mounted) {
