@@ -373,7 +373,7 @@ class _BulkSendScreenState extends ConsumerState<BulkSendScreen> {
     return Card(
       child: InkWell(
         onTap: () async {
-          FilePickerResult? result = await FilePicker.platform.pickFiles(
+          FilePickerResult? result = await FilePicker.pickFiles(
             type: FileType.custom,
             allowedExtensions: ['csv', 'xls', 'xlsx'],
           );
@@ -692,7 +692,7 @@ class _BulkSendScreenState extends ConsumerState<BulkSendScreen> {
               // const SizedBox(height: 8),
               // InkWell(
               //   onTap: () async {
-              //     FilePickerResult? result = await FilePicker.platform.pickFiles(type: FileType.image);
+              //     FilePickerResult? result = await FilePicker.pickFiles(type: FileType.image);
               //     if (result != null) {
               //       setState(() => selectedLogo = File(result.files.single.path!));
               //     }

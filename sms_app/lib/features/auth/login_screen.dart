@@ -93,12 +93,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   const SizedBox(height: 40),
 
                   CustomTextField(
-                    label: 'Email or Phone',
-                    hint: 'Enter registered email/phone',
-                    icon: Icons.person_outline,
+                    label: 'Email',
+                    hint: 'Enter registered email',
+                    icon: Icons.email_outlined,
                     controller: _identityController,
-                    validator: (val) =>
-                        ValidationHelper.validateNotEmpty(val, 'Identity'),
+                    keyboardType: TextInputType.emailAddress,
+                    validator: ValidationHelper.validateEmail,
                   ),
 
                   CustomTextField(
