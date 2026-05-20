@@ -597,7 +597,8 @@ print(response.json())</code>
 
             try {
                 // Using the production API URL instead of localhost
-                const response = await fetch('http://192.168.1.9:3000/smsmitra/v1/sms/trigger', {
+                const baseUrl = 'https://silverapi.allysoftsolutions.com/smsmitra';
+                const response = await fetch(`${baseUrl}/v1/sms/trigger`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
