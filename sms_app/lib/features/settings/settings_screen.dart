@@ -9,6 +9,7 @@ import '../../shared/widgets/gradient_button.dart';
 import 'settings_provider.dart';
 import '../../data/services/whatsapp_sms_service.dart';
 import '../../data/providers/user_provider.dart';
+import '../../data/models/user_model.dart';
 import 'dart:async';
 import 'dart:convert';
 
@@ -97,7 +98,37 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   void _handleStatusResponse(Map<String, dynamic> status) {
     if (!mounted) return;
-    ref.read(userProvider.notifier).refresh();
+    
+    final currentUser = ref.read(userProvider);
+    if (currentUser != null) {
+      UserModel updatedUser;
+      if (status['status'] == 'connected') {
+        updatedUser = currentUser.copyWith(
+          whatsappInstanceKey: status['instanceKey'] ?? currentUser.whatsappInstanceKey,
+          whatsappProfileImage: status['profileImage'] ?? currentUser.whatsappProfileImage,
+          whatsappPhone: status['phone'] ?? currentUser.whatsappPhone,
+          whatsappName: status['name'] ?? currentUser.whatsappName,
+        );
+        ref.read(userProvider.notifier).setUser(updatedUser);
+      } else {
+        updatedUser = UserModel(
+          fullName: currentUser.fullName,
+          email: currentUser.email,
+          phoneNumber: currentUser.phoneNumber,
+          password: currentUser.password,
+          deviceCode: currentUser.deviceCode,
+          createdAt: currentUser.createdAt,
+          profilePath: currentUser.profilePath,
+          id: currentUser.id,
+          whatsappInstanceKey: null,
+          whatsappProfileImage: null,
+          whatsappPhone: null,
+          whatsappName: null,
+        );
+        ref.read(userProvider.notifier).setUser(updatedUser);
+      }
+    }
+    
     final updatedUser = ref.read(userProvider);
     setState(() {
       _isWhatsappLinked = status['status'] == 'connected';
@@ -174,20 +205,71 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Future<void> _unlinkWhatsApp() async {
     final user = ref.read(userProvider);
     if (user == null || user.id == null) return;
+
+    if (_isBottomSheetOpen) {
+      Navigator.pop(context);
+      _isBottomSheetOpen = false;
+    }
+
     _countdownTimer?.cancel();
     _qrExpireTimeLeft = 0;
-    if (_isBottomSheetOpen) Navigator.pop(context);
+
+    // Show unlinking loader dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return const Center(
+          child: Card(
+            child: Padding(
+              padding: EdgeInsets.all(20.0),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(width: 20),
+                  Text("Unlinking WhatsApp..."),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+
     try {
       await _whatsappService.disconnect(user.id.toString());
-      ref.read(userProvider.notifier).refresh();
-      setState(() {
-        _isWhatsappLinked = false;
-        _waQrCode = null;
-        _qrNotifier.value = null;
-        _waStatusMessage = 'Unlinked';
-        _waStatusNotifier.value = 'Unlinked';
-      });
+      
+      final updatedUser = UserModel(
+        fullName: user.fullName,
+        email: user.email,
+        phoneNumber: user.phoneNumber,
+        password: user.password,
+        deviceCode: user.deviceCode,
+        createdAt: user.createdAt,
+        profilePath: user.profilePath,
+        id: user.id,
+        whatsappInstanceKey: null,
+        whatsappProfileImage: null,
+        whatsappPhone: null,
+        whatsappName: null,
+      );
+      ref.read(userProvider.notifier).setUser(updatedUser);
+
+      if (mounted) {
+        Navigator.pop(context); // Dismiss loader
+        setState(() {
+          _isWhatsappLinked = false;
+          _waQrCode = null;
+          _qrNotifier.value = null;
+          _waStatusMessage = 'Unlinked';
+          _waStatusNotifier.value = 'Unlinked';
+        });
+      }
     } catch (e) {
+      if (mounted) {
+        Navigator.pop(context); // Dismiss loader
+      }
       MessageHelper.showError(context, 'Failed to unlink WhatsApp: $e');
     }
   }

@@ -374,25 +374,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           centerTitle: true,
           backgroundColor: Colors.transparent,
           elevation: 0,
-          actions: [
-            if (isOffline)
-              Container(
-                margin: const EdgeInsets.only(right: 16),
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.red.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.red.withOpacity(0.5)),
-                ),
-                child: const Row(
-                  children: [
-                    Icon(Icons.cloud_off, size: 14, color: Colors.red),
-                    SizedBox(width: 4),
-                    Text('Offline', style: TextStyle(color: Colors.red, fontSize: 12)),
-                  ],
-                ),
-              ),
-          ],
+         
         ),
         body: RefreshIndicator(
           onRefresh: () async {
