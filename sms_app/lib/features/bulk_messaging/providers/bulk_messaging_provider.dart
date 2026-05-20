@@ -288,7 +288,7 @@ class BulkMessagingNotifier extends StateNotifier<BulkMessagingState> {
 
         await _whatsappService.sendBulkMessages(
           messages: waMessages,
-          sessionId: 'user_1',
+          sessionId: user.id.toString(),
           userId: user.id.toString(),
           orgCode: state.selectedOrg?.orgCode,
         );

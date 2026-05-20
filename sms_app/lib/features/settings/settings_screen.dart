@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:qr_flutter/qr_flutter.dart';
 import '../../core/helpers/snackbar_helper.dart';
 import '../../core/routes/app_router.dart';
 import '../../data/models/sim_model.dart';
@@ -9,6 +8,7 @@ import '../../data/models/settings_model.dart';
 import '../../shared/widgets/gradient_button.dart';
 import 'settings_provider.dart';
 import '../../data/services/whatsapp_sms_service.dart';
+import '../../data/providers/user_provider.dart';
 import 'dart:async';
 import 'dart:convert';
 
@@ -33,10 +33,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _isWhatsappLinked = false;
   String? _waQrCode;
   String? _waStatusMessage;
-  Timer? _waPollingTimer;
   bool _isBottomSheetOpen = false;
   final ValueNotifier<String?> _qrNotifier = ValueNotifier(null);
   final ValueNotifier<String?> _waStatusNotifier = ValueNotifier(null);
+  int _qrExpireTimeLeft = 0;
+  Timer? _countdownTimer;
 
   @override
   void initState() {
@@ -56,82 +57,129 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _initWhatsApp();
   }
 
+  @override
+  void dispose() {
+    _limitController.dispose();
+    _countdownTimer?.cancel();
+    super.dispose();
+  }
+
   Future<void> _initWhatsApp() async {
-    await _whatsappService.init();
-    if (mounted) {
+    final user = ref.read(userProvider);
+    if (user != null && user.whatsappInstanceKey != null) {
       setState(() {
-        _isWhatsappLinked = _whatsappService.isLinked();
+        _isWhatsappLinked = true;
       });
-      if (_isWhatsappLinked) {
-        _checkWhatsAppStatus();
-      }
+      _checkWhatsAppStatus();
     }
   }
 
-  Future<void> _checkWhatsAppStatus() async {
-    try {
-      final status = await _whatsappService.getStatus('user_1');
+  void _startCountdownTimer() {
+    _countdownTimer?.cancel();
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (mounted) {
         setState(() {
-          _isWhatsappLinked = status['connected'] == true;
-          if (status['qr'] != null) {
-            _waQrCode = status['qr'];
-            _qrNotifier.value = _waQrCode;
-            _waStatusMessage = 'Scan QR Code to link';
+          if (_qrExpireTimeLeft > 0) {
+            _qrExpireTimeLeft--;
+            _waStatusMessage = 'Scan QR Code to link (Expires in ${_qrExpireTimeLeft}s)';
             _waStatusNotifier.value = _waStatusMessage;
-            if (!_isBottomSheetOpen && !_isWhatsappLinked) {
-              _showQrBottomSheet();
-            }
-          } else if (status['status'] == 'connecting') {
-            _waStatusMessage = 'Connecting...';
-            _waStatusNotifier.value = _waStatusMessage;
-          } else if (status['status'] == 'disconnected') {
-            _waStatusMessage = 'Disconnected. Tap Link to retry.';
-            _waStatusNotifier.value = _waStatusMessage;
-            _isWhatsappLinked = false;
-            _whatsappService.setLinked(false);
-            if (_isBottomSheetOpen) Navigator.pop(context);
           } else {
-            _waQrCode = null;
-            _qrNotifier.value = null;
-            _waStatusMessage = 'Connected as ${status['phone'] ?? 'WhatsApp'}';
-            _waStatusNotifier.value = _waStatusMessage;
-            _isWhatsappLinked = true;
-            _whatsappService.setLinked(true);
-            _waPollingTimer?.cancel();
-            if (_isBottomSheetOpen) Navigator.pop(context);
+            timer.cancel();
+            // QR code expired/time is up! Now is the time to poll the server.
+            _checkWhatsAppStatus();
           }
         });
+      } else {
+        timer.cancel();
       }
+    });
+  }
+
+  void _handleStatusResponse(Map<String, dynamic> status) {
+    if (!mounted) return;
+    ref.read(userProvider.notifier).refresh();
+    final updatedUser = ref.read(userProvider);
+    setState(() {
+      _isWhatsappLinked = status['status'] == 'connected';
+      if (status['qr'] != null && status['qr'].toString().isNotEmpty) {
+        _waQrCode = status['qr'];
+        _qrNotifier.value = _waQrCode;
+        final validIn = status['validinsecond'] as int?;
+        if (validIn != null && validIn > 0) {
+          _qrExpireTimeLeft = validIn;
+          _startCountdownTimer();
+        }
+        _waStatusMessage = 'Scan QR Code to link (Expires in ${_qrExpireTimeLeft}s)';
+        _waStatusNotifier.value = _waStatusMessage;
+        if (!_isBottomSheetOpen && !_isWhatsappLinked) {
+          _showQrBottomSheet();
+        }
+      } else if (status['status'] == 'connecting') {
+        _waStatusMessage = 'Connecting...';
+        _waStatusNotifier.value = _waStatusMessage;
+        // Check status again after 5 seconds
+        _qrExpireTimeLeft = 5;
+        _startCountdownTimer();
+      } else if (status['status'] == 'disconnected') {
+        _waStatusMessage = 'Disconnected. Tap Link to retry.';
+        _waStatusNotifier.value = _waStatusMessage;
+        _isWhatsappLinked = false;
+        _waQrCode = null;
+        _qrNotifier.value = null;
+        _qrExpireTimeLeft = 0;
+        _countdownTimer?.cancel();
+        if (_isBottomSheetOpen) Navigator.pop(context);
+      } else {
+        _waQrCode = null;
+        _qrNotifier.value = null;
+        _qrExpireTimeLeft = 0;
+        _countdownTimer?.cancel();
+        _waStatusMessage = 'Connected as ${updatedUser?.whatsappPhone ?? status['phone'] ?? 'WhatsApp'}';
+        _waStatusNotifier.value = _waStatusMessage;
+        _isWhatsappLinked = true;
+        if (_isBottomSheetOpen) Navigator.pop(context);
+      }
+    });
+  }
+
+  Future<void> _checkWhatsAppStatus() async {
+    final user = ref.read(userProvider);
+    if (user == null || user.id == null) return;
+    try {
+      final status = await _whatsappService.getStatus(user.id.toString());
+      _handleStatusResponse(status);
     } catch (e) {
       debugPrint('WhatsApp status error: $e');
     }
   }
 
-  void _startPollingWhatsAppStatus() {
-    _waPollingTimer?.cancel();
-    _waPollingTimer = Timer.periodic(const Duration(seconds: 2), (_) {
-      _checkWhatsAppStatus();
-    });
-  }
-
   Future<void> _linkWhatsApp() async {
+    final user = ref.read(userProvider);
+    if (user == null || user.id == null) {
+      MessageHelper.showError(context, 'You must be logged in to link WhatsApp.');
+      return;
+    }
     setState(() {
       _waStatusMessage = 'Starting session...';
+      _qrExpireTimeLeft = 0;
     });
     try {
-      await _whatsappService.startSession('user_1');
-      _startPollingWhatsAppStatus();
+      final response = await _whatsappService.startSession(user.id.toString());
+      _handleStatusResponse(response);
     } catch (e) {
       MessageHelper.showError(context, 'Failed to start WhatsApp: $e');
     }
   }
 
   Future<void> _unlinkWhatsApp() async {
-    _waPollingTimer?.cancel();
+    final user = ref.read(userProvider);
+    if (user == null || user.id == null) return;
+    _countdownTimer?.cancel();
+    _qrExpireTimeLeft = 0;
     if (_isBottomSheetOpen) Navigator.pop(context);
     try {
-      await _whatsappService.disconnect('user_1');
+      await _whatsappService.disconnect(user.id.toString());
+      ref.read(userProvider.notifier).refresh();
       setState(() {
         _isWhatsappLinked = false;
         _waQrCode = null;
@@ -179,6 +227,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       child: Center(child: CircularProgressIndicator()),
                     );
                   }
+                  final base64Str = qrCode.split(',').last;
+                  final imageBytes = base64Decode(base64Str);
                   return Container(
                     decoration: BoxDecoration(
                       color: Colors.white,
@@ -192,10 +242,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       ],
                     ),
                     padding: const EdgeInsets.all(16),
-                    child: QrImageView(
-                      data: qrCode,
-                      version: QrVersions.auto,
-                      size: 250.0,
+                    child: Image.memory(
+                      imageBytes,
+                      width: 250.0,
+                      height: 250.0,
                     ),
                   );
                 },
@@ -211,11 +261,33 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 },
               ),
               const SizedBox(height: 24),
-              GradientButton(
-                text: 'Cancel',
-                onPressed: () {
-                  _unlinkWhatsApp();
-                },
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        side: BorderSide(color: Colors.grey.shade300),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      onPressed: () {
+                        _unlinkWhatsApp();
+                      },
+                      child: const Text('Cancel', style: TextStyle(color: Colors.black87)),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: GradientButton(
+                      text: 'Check Status',
+                      onPressed: () {
+                        _checkWhatsAppStatus();
+                      },
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 16),
             ],
@@ -225,13 +297,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     ).then((_) {
       _isBottomSheetOpen = false;
     });
-  }
-
-  @override
-  void dispose() {
-    _limitController.dispose();
-    _waPollingTimer?.cancel();
-    super.dispose();
   }
 
   Future<void> _initDetection() async {
@@ -683,6 +748,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Widget _buildWhatsAppCard() {
+    final user = ref.watch(userProvider);
+    final isLinked = user?.whatsappInstanceKey != null;
+
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
@@ -702,7 +770,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
                 const Spacer(),
-                if (_isWhatsappLinked)
+                if (isLinked)
                   const Chip(
                     label: Text('Linked',
                         style: TextStyle(color: Colors.white, fontSize: 12)),
@@ -717,6 +785,48 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ],
             ),
             const SizedBox(height: 12),
+            if (isLinked && user != null) ...[
+              const Divider(),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  CircleAvatar(
+                    radius: 30,
+                    backgroundImage: (user.whatsappProfileImage != null &&
+                            user.whatsappProfileImage!.isNotEmpty)
+                        ? MemoryImage(base64Decode(
+                            user.whatsappProfileImage!.split(',').last))
+                        : null,
+                    backgroundColor: Colors.grey.shade200,
+                    child: (user.whatsappProfileImage == null ||
+                            user.whatsappProfileImage!.isEmpty)
+                        ? const Icon(Icons.person, size: 30, color: Colors.grey)
+                        : null,
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          user.whatsappName ?? 'WhatsApp User',
+                          style: const TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          user.whatsappPhone != null
+                              ? '+${user.whatsappPhone}'
+                              : 'Connected',
+                          style: TextStyle(color: Colors.grey.shade600),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+            ],
             if (_waStatusMessage != null)
               Padding(
                 padding: const EdgeInsets.only(bottom: 12),
@@ -724,7 +834,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     style: const TextStyle(color: Colors.grey)),
               ),
             // Show QR if we have one and not connected
-            if (!_isWhatsappLinked && _waQrCode != null)
+            if (!isLinked && _waQrCode != null)
               Container(
                 margin: const EdgeInsets.only(bottom: 12),
                 padding: const EdgeInsets.all(12),
@@ -755,7 +865,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
               ),
             const SizedBox(height: 12),
-            if (_isWhatsappLinked)
+            if (isLinked)
               ElevatedButton.icon(
                 onPressed: _unlinkWhatsApp,
                 icon: const Icon(Icons.link_off),

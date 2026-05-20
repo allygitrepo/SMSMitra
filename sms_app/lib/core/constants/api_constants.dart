@@ -1,6 +1,6 @@
 class ApiConstants {
-  static const String baseUrl =  'https://silverapi.allysoftsolutions.com/smsmitra/v1'; // Replace with your server IP
-  // static const String baseUrl = 'http://192.168.1.6:3001/smsmitra/v1';
+  // static const String baseUrl =  'https://silverapi.allysoftsolutions.com/smsmitra/v1'; // Replace with your server IP
+  static const String baseUrl = 'http://192.168.1.6:3001/smsmitra/v1';
   // Auth Endpoints
   static const String register = '/auth/register';
   static const String login = '/auth/login';
@@ -19,4 +19,10 @@ class ApiConstants {
   static const String templates = '/bulk/templates';
   static const String parseFile = '/bulk/parse-file';
   static const String sendBulk = '/bulk/send';
+
+  // WhatsApp Endpoints
+  static const String waInitiate = '/whatsapp/initiate';
+  static const String waStatus = '/whatsapp/status';
+  static const String waDelete = '/whatsapp/delete';
+  static const String waSendBulk = '/whatsapp/send-bulk';
 }

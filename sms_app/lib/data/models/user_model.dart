@@ -30,6 +30,18 @@ class UserModel extends HiveObject {
   @HiveField(7)
   final int? id;
 
+  @HiveField(8)
+  final String? whatsappInstanceKey;
+
+  @HiveField(9)
+  final String? whatsappProfileImage;
+
+  @HiveField(10)
+  final String? whatsappPhone;
+
+  @HiveField(11)
+  final String? whatsappName;
+
   UserModel({
     required this.fullName,
     required this.email,
@@ -39,6 +51,10 @@ class UserModel extends HiveObject {
     this.createdAt,
     this.profilePath,
     this.id,
+    this.whatsappInstanceKey,
+    this.whatsappProfileImage,
+    this.whatsappPhone,
+    this.whatsappName,
   });
 
   /// Creates a copy of the user with modified fields.
@@ -51,6 +67,10 @@ class UserModel extends HiveObject {
     String? createdAt,
     String? profilePath,
     int? id,
+    String? whatsappInstanceKey,
+    String? whatsappProfileImage,
+    String? whatsappPhone,
+    String? whatsappName,
   }) {
     return UserModel(
       fullName: fullName ?? this.fullName,
@@ -61,6 +81,10 @@ class UserModel extends HiveObject {
       createdAt: createdAt ?? this.createdAt,
       profilePath: profilePath ?? this.profilePath,
       id: id ?? this.id,
+      whatsappInstanceKey: whatsappInstanceKey ?? this.whatsappInstanceKey,
+      whatsappProfileImage: whatsappProfileImage ?? this.whatsappProfileImage,
+      whatsappPhone: whatsappPhone ?? this.whatsappPhone,
+      whatsappName: whatsappName ?? this.whatsappName,
     );
   }
 }

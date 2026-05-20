@@ -36,6 +36,22 @@ const User = sequelize.define('User', {
     type: DataTypes.TEXT,
     allowNull: true,
   },
+  whatsappInstanceKey: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+  whatsappProfileImage: {
+    type: DataTypes.TEXT('long'),
+    allowNull: true,
+  },
+  whatsappPhone: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+  whatsappName: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
 }, {
   timestamps: true,
 });

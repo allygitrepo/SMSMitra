@@ -25,13 +25,17 @@ class UserModelAdapter extends TypeAdapter<UserModel> {
       createdAt: fields[5] as String?,
       profilePath: fields[6] as String?,
       id: fields[7] as int?,
+      whatsappInstanceKey: fields[8] as String?,
+      whatsappProfileImage: fields[9] as String?,
+      whatsappPhone: fields[10] as String?,
+      whatsappName: fields[11] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, UserModel obj) {
     writer
-      ..writeByte(8)
+      ..writeByte(12)
       ..writeByte(0)
       ..write(obj.fullName)
       ..writeByte(1)
@@ -47,7 +51,15 @@ class UserModelAdapter extends TypeAdapter<UserModel> {
       ..writeByte(6)
       ..write(obj.profilePath)
       ..writeByte(7)
-      ..write(obj.id);
+      ..write(obj.id)
+      ..writeByte(8)
+      ..write(obj.whatsappInstanceKey)
+      ..writeByte(9)
+      ..write(obj.whatsappProfileImage)
+      ..writeByte(10)
+      ..write(obj.whatsappPhone)
+      ..writeByte(11)
+      ..write(obj.whatsappName);
   }
 
   @override
