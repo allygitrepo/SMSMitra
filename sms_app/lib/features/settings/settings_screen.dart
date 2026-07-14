@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../../core/helpers/snackbar_helper.dart';
 import '../../core/routes/app_router.dart';
 import '../../data/models/sim_model.dart';
@@ -23,7 +24,7 @@ class SettingsScreen extends ConsumerStatefulWidget {
   ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
 }
 
-class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+class _SettingsScreenState extends ConsumerState<SettingsScreen> with WidgetsBindingObserver {
   final _formKey = GlobalKey<FormState>();
   List<SimModel> _availableSims = [];
   bool _isDetecting = true;
@@ -40,11 +41,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   int _qrExpireTimeLeft = 0;
   Timer? _countdownTimer;
 
+  // Background and permission status tracking
+  bool _hasSmsPermission = false;
+  bool _hasPhonePermission = false;
+  bool _isBatteryOptimized = false;
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _limitController = TextEditingController();
     _initDetection();
+    _checkPermissionsStatus();
 
     // Initial check for editing mode
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -60,9 +68,31 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _limitController.dispose();
     _countdownTimer?.cancel();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _checkPermissionsStatus();
+      _initDetection();
+    }
+  }
+
+  Future<void> _checkPermissionsStatus() async {
+    final smsGranted = await Permission.sms.isGranted;
+    final phoneGranted = await Permission.phone.isGranted;
+    final batteryOptimized = !(await Permission.ignoreBatteryOptimizations.isGranted);
+    if (mounted) {
+      setState(() {
+        _hasSmsPermission = smsGranted;
+        _hasPhonePermission = phoneGranted;
+        _isBatteryOptimized = batteryOptimized;
+      });
+    }
   }
 
   Future<void> _initWhatsApp() async {
@@ -575,6 +605,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               const SizedBox(height: 12),
               _buildWhatsAppCard(),
 
+              const SizedBox(height: 24),
+              _buildSectionHeader('System & Performance Guide'),
+              const SizedBox(height: 12),
+              _buildTroubleshootingCard(),
+
               const SizedBox(height: 32),
 
               // ── Save button (always shown during editing / first-time) ──
@@ -968,6 +1003,220 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildTroubleshootingCard() {
+    return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Row(
+              children: [
+                Icon(Icons.info_outline, color: Colors.orange, size: 24),
+                SizedBox(width: 8),
+                Text(
+                  'Battery & Permission Checklist',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'For the SMS Gateway to receive triggers and send SMS smoothly in the background, please ensure the following options are configured:',
+              style: TextStyle(fontSize: 13, height: 1.4, color: Colors.grey),
+            ),
+            const SizedBox(height: 20),
+
+            // 1. SMS Permission Status
+            _buildChecklistItem(
+              title: 'SMS Sending Permission',
+              subtitle: 'Required to dispatch outbound SMS messages.',
+              isOk: _hasSmsPermission,
+              onFix: () async {
+                final status = await Permission.sms.request();
+                if (status.isPermanentlyDenied) {
+                  openAppSettings();
+                }
+                _checkPermissionsStatus();
+              },
+            ),
+            const Divider(height: 24),
+
+            // 2. Phone Permission Status
+            _buildChecklistItem(
+              title: 'Phone State Permission',
+              subtitle: 'Required to read carrier details and SIM slots.',
+              isOk: _hasPhonePermission,
+              onFix: () async {
+                final status = await Permission.phone.request();
+                if (status.isPermanentlyDenied) {
+                  openAppSettings();
+                }
+                _checkPermissionsStatus();
+              },
+            ),
+            const Divider(height: 24),
+
+            // 3. Battery Optimization Status
+            _buildChecklistItem(
+              title: 'Battery Saver (Background Alive)',
+              subtitle: 'Prevent Android from killing the app in background.',
+              isOk: !_isBatteryOptimized,
+              fixLabel: 'Disable Optimization',
+              onFix: () async {
+                final status = await Permission.ignoreBatteryOptimizations.request();
+                if (status.isPermanentlyDenied) {
+                  openAppSettings();
+                }
+                _checkPermissionsStatus();
+              },
+            ),
+            
+            const SizedBox(height: 24),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.orange.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.orange.withValues(alpha: 0.1)),
+              ),
+              child: const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.shield_outlined, color: Colors.orange, size: 20),
+                      SizedBox(width: 8),
+                      Text(
+                        'Disable Google Play Protect',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.orange,
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 10),
+                  Text(
+                    'Google Play Protect flags sideloaded apps with SMS permissions and blocks background tasks. Follow these steps to disable it:',
+                    style: TextStyle(fontSize: 12, height: 1.4),
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    '1. Open Google Play Store.\n'
+                    '2. Tap your profile icon (top right).\n'
+                    '3. Tap Play Protect -> Settings (gear icon).\n'
+                    '4. Turn OFF both scanning options.',
+                    style: TextStyle(fontSize: 12, height: 1.5, fontWeight: FontWeight.w500),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.blue.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.blue.withValues(alpha: 0.1)),
+              ),
+              child: const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.lock_outline, color: Colors.blue, size: 20),
+                      SizedBox(width: 8),
+                      Text(
+                        'Keep App Locked in Memory',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue,
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 10),
+                  Text(
+                    'To prevent Android OS from aggressively killing the background socket or FCM receivers:\n\n'
+                    '• Open the recent apps screen (swipe up and hold).\n'
+                    '• Lock the SMSMitra app by clicking the lock icon.',
+                    style: TextStyle(fontSize: 12, height: 1.4),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildChecklistItem({
+    required String title,
+    required String subtitle,
+    required bool isOk,
+    String fixLabel = 'Fix Now',
+    required VoidCallback onFix,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(
+          isOk ? Icons.check_circle : Icons.warning_amber_rounded,
+          color: isOk ? Colors.green : Colors.red,
+          size: 24,
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                subtitle,
+                style: const TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+            ],
+          ),
+        ),
+        if (!isOk)
+          TextButton(
+            onPressed: onFix,
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: Text(
+              fixLabel,
+              style: const TextStyle(
+                color: Colors.orange,
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+              ),
+            ),
+          )
+        else
+          const Text(
+            'Active',
+            style: TextStyle(
+              color: Colors.green,
+              fontWeight: FontWeight.bold,
+              fontSize: 13,
+            ),
+          ),
+      ],
     );
   }
 }

@@ -28,6 +28,10 @@ class AuthService {
           deviceCode: data['user']['deviceCode'],
         );
         await StorageService.saveUser(newUser);
+
+        // Sync FCM Token for the newly registered device
+        await _updateFcmToken(data['user']['deviceCode']);
+
         return {
           'success': true,
           'message': 'Registration successful',
