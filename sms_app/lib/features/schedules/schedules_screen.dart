@@ -12,6 +12,9 @@ import '../../shared/widgets/empty_state_widget.dart';
 import '../../shared/widgets/stat_card.dart';
 import '../../shared/widgets/status_badge.dart';
 import '../home/stats_provider.dart';
+import '../frequent/frequent_provider.dart';
+import '../frequent/frequent_screen.dart';
+import '../frequent/widgets/frequent_sms_sheet.dart';
 import 'schedules_provider.dart';
 import 'widgets/schedule_sms_sheet.dart';
 
@@ -23,6 +26,7 @@ class SchedulesScreen extends ConsumerStatefulWidget {
 }
 
 class _SchedulesScreenState extends ConsumerState<SchedulesScreen> with WidgetsBindingObserver {
+  int _selectedTab = 0; // 0: Timeline Schedules, 1: Recurring Rules
   StreamSubscription<void>? _socketSubscription;
   final Set<int> _destroyingScheduleIds = {};
   final Set<int> _dispatchedScheduleIds = {};
@@ -143,12 +147,98 @@ class _SchedulesScreenState extends ConsumerState<SchedulesScreen> with WidgetsB
       }
     }
 
+    final frequentState = ref.watch(frequentProvider);
+    final isTimelineTab = _selectedTab == 0;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Scheduled SMS', style: TextStyle(fontWeight: FontWeight.bold)),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(48),
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 4),
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              color: theme.scaffoldBackgroundColor,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: theme.dividerColor),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: InkWell(
+                    onTap: () => setState(() => _selectedTab = 0),
+                    borderRadius: BorderRadius.circular(8),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 250),
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      decoration: BoxDecoration(
+                        color: _selectedTab == 0 ? AppColors.orange : Colors.transparent,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.timeline_rounded,
+                            size: 16,
+                            color: _selectedTab == 0 ? Colors.white : Colors.grey,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            'One-Time Timeline',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: _selectedTab == 0 ? Colors.white : Colors.grey,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: InkWell(
+                    onTap: () => setState(() => _selectedTab = 1),
+                    borderRadius: BorderRadius.circular(8),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 250),
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      decoration: BoxDecoration(
+                        color: _selectedTab == 1 ? AppColors.orange : Colors.transparent,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.repeat_rounded,
+                            size: 16,
+                            color: _selectedTab == 1 ? Colors.white : Colors.grey,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Recurring Rules',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: _selectedTab == 1 ? Colors.white : Colors.grey,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
         actions: [
           IconButton(
-            icon: schedulesState.isLoading
+            icon: (isTimelineTab ? schedulesState.isLoading : frequentState.isLoading)
                 ? const SizedBox(
                     width: 20,
                     height: 20,
@@ -156,25 +246,38 @@ class _SchedulesScreenState extends ConsumerState<SchedulesScreen> with WidgetsB
                   )
                 : const Icon(Icons.refresh),
             tooltip: 'Refresh',
-            onPressed: schedulesState.isLoading
+            onPressed: (isTimelineTab ? schedulesState.isLoading : frequentState.isLoading)
                 ? null
-                : () => ref.read(schedulesProvider.notifier).fetchSchedules(),
+                : () {
+                    if (isTimelineTab) {
+                      ref.read(schedulesProvider.notifier).fetchSchedules();
+                    } else {
+                      ref.read(frequentProvider.notifier).fetchRules();
+                    }
+                  },
           ),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => ScheduleSmsSheet.show(context),
+        onPressed: () {
+          if (isTimelineTab) {
+            ScheduleSmsSheet.show(context);
+          } else {
+            FrequentSmsSheet.show(context);
+          }
+        },
         backgroundColor: AppColors.orange,
         foregroundColor: Colors.white,
-        icon: const Icon(Icons.add_alarm_rounded),
-        label: const Text('Schedule SMS'),
+        icon: Icon(isTimelineTab ? Icons.add_alarm_rounded : Icons.repeat_rounded),
+        label: Text(isTimelineTab ? 'Schedule SMS' : 'Recurring SMS'),
       ),
-      body: RefreshIndicator(
-        onRefresh: () => ref.read(schedulesProvider.notifier).fetchSchedules(),
-        child: CustomScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          slivers: [
-            // Top Summary Cards (Compact & Low-Height)
+      body: isTimelineTab
+          ? RefreshIndicator(
+              onRefresh: () => ref.read(schedulesProvider.notifier).fetchSchedules(),
+              child: CustomScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                slivers: [
+                  // Top Summary Cards (Compact & Low-Height)
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.sm, AppSpacing.md, AppSpacing.xs),
@@ -259,7 +362,8 @@ class _SchedulesScreenState extends ConsumerState<SchedulesScreen> with WidgetsB
             const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xxl)),
           ],
         ),
-      ),
+      )
+    : const FrequentScreen(),
     );
   }
 

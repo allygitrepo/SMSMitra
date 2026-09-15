@@ -1,9 +1,11 @@
 const { Op } = require('sequelize');
 const ScheduledSms = require('../models/scheduledsms.model');
+const FrequentSms = require('../models/frequentsms.model');
 const User = require('../models/user.model');
 const SimDetail = require('../models/simdetail.model');
 const SmsLog = require('../models/smslog.model');
 const admin = require('../config/firebase');
+const { calculateNextRun } = require('./recurrence');
 
 let schedulerTimer = null;
 
@@ -99,13 +101,95 @@ const processScheduledJob = async (job, io) => {
 };
 
 /**
- * Polling tick that checks for due scheduled SMS jobs
+ * Executes a single recurring/frequent SMS job
+ */
+const processFrequentJob = async (rule, io) => {
+  try {
+    const user = await User.findByPk(rule.userId);
+    if (!user) {
+      rule.status = 'paused';
+      await rule.save();
+      return;
+    }
+
+    if (!user.fcmToken) {
+      console.warn(`[Scheduler] User ${user.id} has no FCM token for recurring SMS #${rule.id}.`);
+      return;
+    }
+
+    // Determine SIM to use
+    let selectedSim = null;
+    if (rule.simId) {
+      selectedSim = await SimDetail.findOne({
+        where: { userId: user.id, simId: rule.simId, isActive: true },
+      });
+    }
+
+    if (!selectedSim) {
+      const availableSims = await SimDetail.findAll({
+        where: { userId: user.id, isActive: true },
+        order: [['priority', 'ASC']],
+      });
+      if (availableSims.length > 0) {
+        selectedSim = availableSims[0];
+      }
+    }
+
+    // Create tracking SmsLog
+    const log = await SmsLog.create({
+      userId: user.id,
+      receiverNumber: rule.receiverNumber,
+      message: rule.message,
+      simId: selectedSim ? selectedSim.simId : null,
+      status: 'pending',
+    });
+
+    const now = new Date();
+    rule.lastRunAt = now;
+    rule.totalDispatchedCount = (rule.totalDispatchedCount || 0) + 1;
+    // Calculate next run occurrence
+    rule.nextRunAt = calculateNextRun(rule.frequencyType, rule.frequencyConfig, rule.dispatchTime, now);
+    rule.status = 'active';
+    await rule.save();
+
+    // Prepare FCM payload
+    const payload = {
+      token: user.fcmToken,
+      data: {
+        type: 'SEND_SMS',
+        logId: log.id.toString(),
+        phoneNumber: rule.receiverNumber,
+        message: rule.message,
+        simId: selectedSim ? selectedSim.simId : '',
+      },
+      android: {
+        priority: 'high',
+      },
+    };
+
+    if (admin.apps && admin.apps.length > 0) {
+      await admin.messaging().send(payload);
+    }
+
+    if (io) {
+      io.to(user.id.toString()).emit('stats_update');
+      io.to(user.id.toString()).emit('frequent_update');
+    }
+
+    console.log(`[Scheduler] Successfully dispatched Recurring SMS #${rule.id} to ${rule.receiverNumber}. Next run: ${rule.nextRunAt.toISOString()}`);
+  } catch (error) {
+    console.error(`[Scheduler] Error processing recurring job #${rule.id}:`, error.message);
+  }
+};
+
+/**
+ * Polling tick that checks for due scheduled and recurring SMS jobs
  */
 const runSchedulerTick = async (io) => {
   try {
     const now = new Date();
 
-    // Find up to 50 due jobs using indexed query
+    // 1. One-time scheduled SMS
     const dueJobs = await ScheduledSms.findAll({
       where: {
         status: 'scheduled',
@@ -115,17 +199,30 @@ const runSchedulerTick = async (io) => {
       order: [['scheduledAt', 'ASC']],
     });
 
-    if (dueJobs.length === 0) return;
+    if (dueJobs.length > 0) {
+      console.log(`[Scheduler] Found ${dueJobs.length} due scheduled SMS job(s). Processing...`);
+      for (const job of dueJobs) {
+        job.status = 'processing';
+        await job.save();
+        await processScheduledJob(job, io);
+      }
+    }
 
-    console.log(`[Scheduler] Found ${dueJobs.length} due scheduled SMS job(s). Processing...`);
+    // 2. Recurring / Frequent SMS rules
+    const dueFrequent = await FrequentSms.findAll({
+      where: {
+        status: 'active',
+        nextRunAt: { [Op.lte]: now },
+      },
+      limit: 50,
+      order: [['nextRunAt', 'ASC']],
+    });
 
-    for (const job of dueJobs) {
-      // Atomic Lock: Mark processing immediately
-      job.status = 'processing';
-      await job.save();
-
-      // Process dispatch
-      await processScheduledJob(job, io);
+    if (dueFrequent.length > 0) {
+      console.log(`[Scheduler] Found ${dueFrequent.length} due recurring SMS rule(s). Processing...`);
+      for (const rule of dueFrequent) {
+        await processFrequentJob(rule, io);
+      }
     }
   } catch (error) {
     console.error('[Scheduler] Tick error:', error.message);

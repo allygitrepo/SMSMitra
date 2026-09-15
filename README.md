@@ -316,6 +316,13 @@ flutter test
 - `PUT /smsmitra/v1/schedules/:id` — Edit an upcoming scheduled message (phone, text, SIM, time).
 - `DELETE /smsmitra/v1/schedules/:id` — Cancel an upcoming scheduled SMS.
 
+### Frequently Sending / Recurring SMS
+- `POST /smsmitra/v1/frequent` — Create a recurring rule (Daily, Alternate Day, Weekly, Monthly, Custom) with time and SIM selection.
+- `GET /smsmitra/v1/frequent?userId=:id&status=:status` — Fetch recurring SMS rules and execution stats.
+- `PUT /smsmitra/v1/frequent/:id` — Update recurring SMS rule parameters.
+- `PATCH /smsmitra/v1/frequent/:id/toggle` — Instantly switch rule between `active` and `paused`.
+- `DELETE /smsmitra/v1/frequent/:id` — Delete recurring rule with realistic 12-shard glass shatter animation.
+
 ### SIM & Gateway Operations
 - `POST /smsmitra/v1/sms/sync-sims` — Sync detected physical SIM cards and configured quota limits.
 - `POST /smsmitra/v1/sms/create-log` — Create manual or external SMS dispatch log.

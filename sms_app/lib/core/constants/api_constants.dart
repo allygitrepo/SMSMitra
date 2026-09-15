@@ -16,4 +16,5 @@ class ApiConstants {
 
   // Schedule Endpoints
   static const String schedules = '/schedules';
+  static const String frequent = '/frequent';
 }

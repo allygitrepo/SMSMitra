@@ -6,6 +6,7 @@ import '../services/sms_api_service.dart';
 import '../services/sms_service.dart';
 import '../services/socket_service.dart';
 import '../services/scheduled_sms_service.dart';
+import '../services/frequent_sms_service.dart';
 import '../cache/cache_service.dart';
 
 /// Provider for the central Dio-based API client.
@@ -46,4 +47,9 @@ final socketServiceProvider = Provider<SocketService>((ref) {
 /// Provider for scheduled SMS API service.
 final scheduledSmsServiceProvider = Provider<ScheduledSmsService>((ref) {
   return ScheduledSmsService(apiService: ref.watch(apiServiceProvider));
+});
+
+/// Provider for recurring/frequent SMS API service.
+final frequentSmsServiceProvider = Provider<FrequentSmsService>((ref) {
+  return FrequentSmsService(apiService: ref.watch(apiServiceProvider));
 });

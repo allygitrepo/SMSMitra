@@ -11,6 +11,7 @@ import '../../shared/widgets/stat_card.dart';
 import '../../shared/widgets/confirm_bottom_sheet.dart';
 import '../settings/settings_provider.dart';
 import '../schedules/widgets/schedule_sms_sheet.dart';
+import '../frequent/widgets/frequent_sms_sheet.dart';
 import 'stats_provider.dart';
 import 'sms_controller.dart';
 import '../../data/services/socket_service.dart';
@@ -222,16 +223,33 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     _buildSectionHeader('Quick Send SMS'),
-                    TextButton.icon(
-                      onPressed: () => ScheduleSmsSheet.show(context),
-                      icon: const Icon(Icons.schedule, size: 18, color: Colors.orange),
-                      label: const Text(
-                        'Schedule',
-                        style: TextStyle(
-                          color: Colors.orange,
-                          fontWeight: FontWeight.w600,
+                    Row(
+                      children: [
+                        TextButton.icon(
+                          onPressed: () => ScheduleSmsSheet.show(context),
+                          icon: const Icon(Icons.schedule, size: 16, color: Colors.orange),
+                          label: const Text(
+                            'Schedule',
+                            style: TextStyle(
+                              color: Colors.orange,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                         ),
-                      ),
+                        TextButton.icon(
+                          onPressed: () => FrequentSmsSheet.show(context),
+                          icon: const Icon(Icons.repeat_rounded, size: 16, color: Colors.purple),
+                          label: const Text(
+                            'Recurring',
+                            style: TextStyle(
+                              color: Colors.purple,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
