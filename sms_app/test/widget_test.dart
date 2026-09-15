@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sms_app/shared/widgets/gradient_button.dart';
 import 'package:sms_app/shared/widgets/custom_text_field.dart';
@@ -111,6 +112,43 @@ void main() {
       await tester.pump();
 
       expect(submittedValue, equals('test@smsmitra.com'));
+    });
+
+    testWidgets('CustomTextField handles unmount and dispose safely', (WidgetTester tester) async {
+      final controller = TextEditingController(text: 'sample');
+      final focusNode = FocusNode();
+
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            home: Scaffold(
+              body: CustomTextField(
+                label: 'Field',
+                hint: 'Hint',
+                icon: Icons.text_fields,
+                controller: controller,
+                focusNode: focusNode,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('sample'), findsOneWidget);
+
+      // Unmount the widget by replacing it with a container
+      await tester.pumpWidget(
+        const ProviderScope(
+          child: MaterialApp(
+            home: Scaffold(body: SizedBox.shrink()),
+          ),
+        ),
+      );
+
+      expect(find.text('sample'), findsNothing);
+
+      controller.dispose();
+      focusNode.dispose();
     });
   });
 }

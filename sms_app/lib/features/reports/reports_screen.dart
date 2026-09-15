@@ -16,12 +16,13 @@ class ReportsScreen extends ConsumerStatefulWidget {
   ConsumerState<ReportsScreen> createState() => _ReportsScreenState();
 }
 
-class _ReportsScreenState extends ConsumerState<ReportsScreen> {
+class _ReportsScreenState extends ConsumerState<ReportsScreen> with WidgetsBindingObserver {
   StreamSubscription<void>? _socketSubscription;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(reportsProvider.notifier).init();
     });
@@ -34,7 +35,15 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && mounted) {
+      ref.read(reportsProvider.notifier).fetchReports();
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _socketSubscription?.cancel();
     super.dispose();
   }

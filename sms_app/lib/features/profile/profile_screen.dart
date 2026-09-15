@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/helpers/snackbar_helper.dart';
+import '../../core/helpers/validation_helper.dart';
 import '../../core/routes/app_router.dart';
 import '../../data/repositories/auth_repository.dart';
 import '../../data/providers/user_provider.dart';
 import '../../data/models/user_model.dart';
+import '../../shared/widgets/custom_text_field.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -15,10 +18,13 @@ class ProfileScreen extends ConsumerStatefulWidget {
 }
 
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
+  final _formKey = GlobalKey<FormState>();
   bool _isEditing = false;
   bool _isSaving = false;
   late TextEditingController _nameController;
   late TextEditingController _phoneController;
+  final _nameFocus = FocusNode();
+  final _phoneFocus = FocusNode();
 
   @override
   void initState() {
@@ -32,12 +38,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   void dispose() {
     _nameController.dispose();
     _phoneController.dispose();
+    _nameFocus.dispose();
+    _phoneFocus.dispose();
     super.dispose();
   }
 
   Future<void> _handleUpdate() async {
     final user = ref.read(userProvider);
     if (user == null) return;
+
+    if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isSaving = true);
 
@@ -47,18 +57,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         phoneNumber: _phoneController.text.trim(),
       );
 
-      if (mounted) {
-        setState(() {
-          _isSaving = false;
-          _isEditing = false;
-        });
-        MessageHelper.showSuccess(context, result['message'] ?? 'Profile updated successfully');
-      }
+      if (!mounted) return;
+      setState(() {
+        _isSaving = false;
+        _isEditing = false;
+      });
+      MessageHelper.showSuccess(context, result['message'] ?? 'Profile updated successfully');
     } catch (e) {
-      if (mounted) {
-        setState(() => _isSaving = false);
-        MessageHelper.showError(context, e.toString());
-      }
+      if (!mounted) return;
+      setState(() => _isSaving = false);
+      MessageHelper.showError(context, e.toString());
     }
   }
 
@@ -93,6 +101,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Synchronize text controllers when user profile data updates externally
+    ref.listen<UserModel?>(userProvider, (previous, next) {
+      if (!_isEditing && next != null) {
+        _nameController.text = next.fullName;
+        _phoneController.text = next.phoneNumber;
+      }
+    });
+
     final user = ref.watch(userProvider);
 
     return Scaffold(
@@ -162,14 +178,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               gradient: LinearGradient(
                 colors: [
                   colorScheme.primary,
-                  colorScheme.primary.withOpacity(0.7),
+                  colorScheme.primary.withValues(alpha: 0.7),
                 ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: colorScheme.primary.withOpacity(0.35),
+                  color: colorScheme.primary.withValues(alpha: 0.35),
                   blurRadius: 16,
                   offset: const Offset(0, 6),
                 ),
@@ -229,7 +245,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -278,7 +294,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           width: 40,
           height: 40,
           decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+            color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(10),
           ),
           child: Icon(
@@ -319,65 +335,48 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   Widget _buildEditFields() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Edit Profile',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 15,
-            color: Theme.of(context).colorScheme.onSurface,
-          ),
-        ),
-        const SizedBox(height: 20),
-        TextField(
-          controller: _nameController,
-          decoration: InputDecoration(
-            labelText: 'Full Name',
-            prefixIcon: Icon(
-              Icons.person_outline,
-              color: Theme.of(context).colorScheme.primary,
-            ),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(
-                color: Theme.of(context).colorScheme.primary,
-                width: 2,
-              ),
-            ),
-            labelStyle: TextStyle(color: Theme.of(context).hintColor),
-            floatingLabelStyle: TextStyle(
-              color: Theme.of(context).colorScheme.primary,
+    return Form(
+      key: _formKey,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Edit Profile',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 15,
+              color: Theme.of(context).colorScheme.onSurface,
             ),
           ),
-        ),
-        const SizedBox(height: 16),
-        TextField(
-          controller: _phoneController,
-          decoration: InputDecoration(
-            labelText: 'Mobile Number',
-            prefixIcon: Icon(
-              Icons.phone_outlined,
-              color: Theme.of(context).colorScheme.primary,
-            ),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(
-                color: Theme.of(context).colorScheme.primary,
-                width: 2,
-              ),
-            ),
-            labelStyle: TextStyle(color: Theme.of(context).hintColor),
-            floatingLabelStyle: TextStyle(
-              color: Theme.of(context).colorScheme.primary,
-            ),
+          const SizedBox(height: 20),
+          CustomTextField(
+            label: 'Full Name',
+            hint: 'Enter your full name',
+            icon: Icons.person_outline,
+            controller: _nameController,
+            focusNode: _nameFocus,
+            textCapitalization: TextCapitalization.words,
+            textInputAction: TextInputAction.next,
+            validator: ValidationHelper.validateName,
+            onFieldSubmitted: (_) => _phoneFocus.requestFocus(),
           ),
-          keyboardType: TextInputType.phone,
-        ),
-      ],
+          CustomTextField(
+            label: 'Mobile Number',
+            hint: 'Enter 10-digit mobile number',
+            icon: Icons.phone_outlined,
+            controller: _phoneController,
+            focusNode: _phoneFocus,
+            keyboardType: TextInputType.phone,
+            textInputAction: TextInputAction.done,
+            inputFormatters: [
+              FilteringTextInputFormatter.digitsOnly,
+              LengthLimitingTextInputFormatter(10),
+            ],
+            validator: ValidationHelper.validatePhone,
+            onFieldSubmitted: (_) => _handleUpdate(),
+          ),
+        ],
+      ),
     );
   }
 
@@ -410,46 +409,50 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   )
                 : const Text(
                     'Save Changes',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                   ),
           ),
           const SizedBox(height: 12),
           OutlinedButton(
-            onPressed: () => setState(() => _isEditing = false),
+            onPressed: _isSaving
+                ? null
+                : () {
+                    final user = ref.read(userProvider);
+                    _nameController.text = user?.fullName ?? '';
+                    _phoneController.text = user?.phoneNumber ?? '';
+                    setState(() => _isEditing = false);
+                  },
             style: OutlinedButton.styleFrom(
               minimumSize: const Size(double.infinity, 52),
-              side: BorderSide(color: Theme.of(context).colorScheme.primary),
-              foregroundColor: Theme.of(context).colorScheme.primary,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(14),
               ),
             ),
-            child: const Text(
-              'Cancel',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-            ),
+            child: const Text('Cancel'),
           ),
         ],
       );
     }
 
-    return Material(
-      color: Theme.of(context).cardColor,
-      borderRadius: BorderRadius.circular(16),
-      elevation: 1,
-      shadowColor: Colors.black.withOpacity(0.05),
-      clipBehavior: Clip.antiAlias,
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: Theme.of(context).dividerColor),
+      ),
+      shadowColor: Colors.black.withValues(alpha: 0.05),
       child: ListTile(
-        onTap: () => _handleLogout(context, ref),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 20,
+          vertical: 6,
+        ),
         leading: Container(
-          width: 40,
-          height: 40,
+          padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: Colors.red.withOpacity(0.1),
+            color: Colors.red.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(10),
           ),
-          child: const Icon(Icons.logout, color: Colors.red, size: 20),
+          child: const Icon(Icons.logout_rounded, color: Colors.red, size: 22),
         ),
         title: const Text(
           'Logout',
@@ -460,6 +463,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ),
         ),
         trailing: const Icon(Icons.chevron_right, color: Colors.red),
+        onTap: () => _handleLogout(context, ref),
       ),
     );
   }

@@ -20,10 +20,12 @@ class HomeScreen extends ConsumerStatefulWidget {
   ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends ConsumerState<HomeScreen> {
+class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObserver {
   final _formKey = GlobalKey<FormState>();
   final _phoneController = TextEditingController();
   final _messageController = TextEditingController();
+  final _phoneFocus = FocusNode();
+  final _messageFocus = FocusNode();
   bool _isSyncing = false;
   StreamSubscription<RemoteMessage>? _fcmSubscription;
   StreamSubscription<void>? _socketSubscription;
@@ -31,20 +33,27 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) => _refreshData());
+    
     // Listen for real-time stats updates from server
     _fcmSubscription = FirebaseMessaging.onMessage.listen((message) {
       if (message.data['type'] == 'STATS_UPDATE') {
-        debugPrint("HomeScreen: Received real-time stats update trigger");
         _refreshData();
       }
     });
 
     SocketService().initSocket();
     _socketSubscription = SocketService().statsUpdateStream.listen((_) {
-      debugPrint("HomeScreen: Received Socket stats update trigger");
       _refreshData();
     });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _refreshData();
+    }
   }
 
   Future<void> _refreshData() async {
@@ -61,11 +70,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _fcmSubscription?.cancel();
     _socketSubscription?.cancel();
     SocketService().disconnect();
     _phoneController.dispose();
     _messageController.dispose();
+    _phoneFocus.dispose();
+    _messageFocus.dispose();
     super.dispose();
   }
 
@@ -386,9 +398,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.02),
+        color: Colors.white.withValues(alpha: 0.02),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.grey.withOpacity(0.1)),
+        border: Border.all(color: Colors.grey.withValues(alpha: 0.1)),
       ),
       child: Form(
         key: _formKey,
@@ -396,24 +408,34 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           children: [
             CustomTextField(
               label: 'Receiver Number',
-              hint: '+91',
+              hint: 'Enter 10-digit mobile number',
               icon: Icons.phone_android,
               controller: _phoneController,
+              focusNode: _phoneFocus,
               keyboardType: TextInputType.phone,
+              textInputAction: TextInputAction.next,
+              inputFormatters: [
+                FilteringTextInputFormatter.digitsOnly,
+                LengthLimitingTextInputFormatter(10),
+              ],
               validator: ValidationHelper.validatePhone,
+              onFieldSubmitted: (_) => _messageFocus.requestFocus(),
             ),
             const SizedBox(height: 16),
             TextFormField(
               controller: _messageController,
+              focusNode: _messageFocus,
               maxLines: 3,
+              textInputAction: TextInputAction.done,
               validator: (val) =>
                   ValidationHelper.validateNotEmpty(val, 'Message'),
               decoration: InputDecoration(
-                hintText: 'Type message...',
+                hintText: 'Type SMS message...',
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
+              onFieldSubmitted: (_) => _handleSend(),
             ),
             const SizedBox(height: 24),
             GradientButton(
