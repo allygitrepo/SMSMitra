@@ -5,7 +5,6 @@ import 'package:sms_app/data/services/storage_service.dart';
 import '../../core/helpers/validation_helper.dart';
 import '../../core/helpers/snackbar_helper.dart';
 import '../../core/routes/app_router.dart';
-import '../../core/constants/api_constants.dart';
 import '../../data/models/user_model.dart';
 import '../../data/services/auth_service.dart';
 import '../../data/providers/user_provider.dart';
@@ -53,8 +52,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         // Mark as logged in locally
         await StorageService.setLoggedIn(true);
 
-        // Go straight to mandatory SIM setup
-        context.go(AppRouter.setupSim);
+        if (mounted) {
+          // Go straight to mandatory SIM setup
+          context.go(AppRouter.setupSim);
+        }
       } else if (mounted) {
         MessageHelper.showError(context,
             result['message'] ?? 'Registration failed. Please try again.');

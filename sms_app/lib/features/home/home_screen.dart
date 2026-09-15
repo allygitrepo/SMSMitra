@@ -1,21 +1,15 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:go_router/go_router.dart';
 import '../../core/helpers/validation_helper.dart';
 import '../../core/helpers/snackbar_helper.dart';
-import '../../core/routes/app_router.dart';
 import '../../data/services/sms_service.dart';
-import '../../data/services/auth_service.dart';
 import '../../data/services/sms_api_service.dart';
 import 'package:sms_app/data/services/storage_service.dart';
 import '../../shared/widgets/custom_text_field.dart';
 import '../../shared/widgets/gradient_button.dart';
-
-import '../../data/providers/connectivity_provider.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../data/models/sim_model.dart';
 import '../settings/settings_provider.dart';
 import 'stats_provider.dart';
 import '../../data/services/socket_service.dart';
@@ -159,81 +153,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
   }
 
-  Future<bool> _showConfirmationDialog({
-    required String title,
-    required String content,
-    required String confirmText,
-  }) async {
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                content,
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
-              ),
-              const SizedBox(height: 32),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextButton(
-                      onPressed: () => Navigator.pop(context, false),
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          side: BorderSide(color: Colors.grey.shade300),
-                        ),
-                      ),
-                      child: Text(
-                        'Cancel',
-                        style: TextStyle(color: Colors.grey.shade700),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () => Navigator.pop(context, true),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor:
-                            confirmText.toLowerCase().contains('exit') ||
-                                confirmText.toLowerCase().contains('logout')
-                            ? Colors.redAccent
-                            : Colors.orange,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: Text(confirmText),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-    return result ?? false;
-  }
 
   Future<bool> _showExitBottomSheet() async {
     final result = await showModalBottomSheet<bool>(
@@ -343,156 +262,85 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       }
     });
 
-    final connectivity = ref.watch(connectivityProvider);
-    final isOffline = connectivity == ConnectivityStatus.offline;
-
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) async {
         if (didPop) return;
-        final shouldExit = await _showExitBottomSheet();
-        if (shouldExit && mounted) {
+        final shouldPop = await _showExitBottomSheet();
+        if (shouldPop && context.mounted) {
           SystemNavigator.pop();
         }
       },
       child: Scaffold(
         appBar: AppBar(
-          title: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text('Dashboard'),
-              if (_isSyncing) ...[
-                const SizedBox(width: 8),
-                const SizedBox(
-                  width: 14,
-                  height: 14,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.orange),
-                ),
-              ],
-            ],
-          ),
-          centerTitle: true,
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-         
+          title: const Text('SMS Mitra', style: TextStyle(fontWeight: FontWeight.bold)),
+          centerTitle: false,
+          actions: [
+            IconButton(
+              icon: _isSyncing
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.refresh),
+              tooltip: 'Sync Stats',
+              onPressed: _isSyncing ? null : _refreshData,
+            ),
+            const SizedBox(width: 8),
+          ],
         ),
         body: RefreshIndicator(
-          onRefresh: () async {
-            await ref.read(simsProvider.future);
-            await ref.read(smsStatsProvider.notifier).fetchStats();
-          },
+          onRefresh: _refreshData,
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: 20),
+            padding: const EdgeInsets.all(20.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // _buildStatusHeader(simsAsync),
-                // const SizedBox(height: 24),
+                _buildQuotaWarning(sentToday, perSimLimit),
+                const SizedBox(height: 16),
                 _buildSectionHeader('Overview'),
-                const SizedBox(height: 12),
-                _buildQuotaWarning(sentToday, activeSimCount * perSimLimit),
                 const SizedBox(height: 12),
                 Row(
                   children: [
                     Expanded(
                       child: _buildStatCard(
                         'Sent Today',
-                        '$sentToday',
-                        Icons.send,
-                        Colors.orange,
+                        sentToday.toString(),
+                        Icons.send_rounded,
+                        Colors.green,
                       ),
                     ),
-                    const SizedBox(width: 16),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: _buildStatCard(
                         'Remaining',
                         remainingText,
-                        Icons.hourglass_empty,
-                        sentToday >= (activeSimCount * perSimLimit) && perSimLimit != -1 ? Colors.red : Colors.blue,
+                        Icons.hourglass_bottom_rounded,
+                        Colors.orange,
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
                 _buildStatCard(
                   'Active Gateway',
                   activeGateway,
-                  Icons.router,
-                  Colors.green,
+                  Icons.sim_card_rounded,
+                  Colors.blue,
                   isFullWidth: true,
                 ),
-
-                const SizedBox(height: 32),
-                _buildSectionHeader('Quick Send'),
+                const SizedBox(height: 28),
+                _buildSectionHeader('Quick Send SMS'),
                 const SizedBox(height: 12),
                 _buildQuickSendForm(),
-
                 const SizedBox(height: 32),
-                // const SizedBox(height: 40),
               ],
             ),
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildStatusHeader(AsyncValue<List<SimModel>> simsAsync) {
-    return simsAsync.when(
-      data: (sims) {
-        final isActive = sims.isNotEmpty;
-        return Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: (isActive ? Colors.green : Colors.red).withOpacity(0.1),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: (isActive ? Colors.green : Colors.red).withOpacity(0.2),
-            ),
-          ),
-          child: Row(
-            children: [
-              _buildPulseIndicator(isActive ? Colors.green : Colors.red),
-              const SizedBox(width: 12),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    isActive ? 'Gateway Service Active' : 'Gateway Inactive',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: isActive ? Colors.green : Colors.red,
-                    ),
-                  ),
-                  Text(
-                    isActive ? 'Ready to process requests' : 'No SIM detected',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: isActive
-                          ? Colors.green.shade700
-                          : Colors.red.shade700,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        );
-      },
-      loading: () => const LinearProgressIndicator(),
-      error: (err, stack) => _buildStatusHeaderError(),
-    );
-  }
-
-  Widget _buildStatusHeaderError() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.red.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: const Text('Error detecting SIM status'),
     );
   }
 
@@ -529,18 +377,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildPulseIndicator(Color color) {
-    return Container(
-      width: 12,
-      height: 12,
-      decoration: BoxDecoration(
-        color: color,
-        shape: BoxShape.circle,
-        boxShadow: [BoxShadow(color: color, blurRadius: 4, spreadRadius: 2)],
       ),
     );
   }

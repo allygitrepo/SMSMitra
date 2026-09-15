@@ -1,5 +1,5 @@
 name: sms_app
-description: "A new Flutter project."
+description: "SMS Gateway and Dispatch Application."
 publish_to: 'none'
 
 version: 1.0.0+1
@@ -14,30 +14,26 @@ dependencies:
   flutter_riverpod: ^2.6.1
   go_router: ^17.2.1
   permission_handler: ^12.0.1
+  hive: ^2.2.3
   hive_flutter: ^1.1.0
   dio: ^5.9.2
   firebase_core: ^4.7.0
   firebase_messaging: ^16.2.0
   firebase_analytics: ^12.3.0
-  image_picker: ^1.2.1
   path_provider: ^2.1.5
   pdf: ^3.12.0
   printing: ^5.14.3
   intl: ^0.20.2
-  file_picker: ^11.0.2
   logger: ^2.4.0
   fluttertoast: ^9.0.0
   sms_plugin:
     path: local_plugins/sms_plugin
   socket_io_client: ^3.1.4
   url_launcher: ^6.3.2
-  qr_flutter: ^4.1.0
-
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  # rules and activating additional ones.
   flutter_lints: ^6.0.0
   build_runner: ^2.4.9
   hive_generator: ^2.0.1
@@ -52,13 +48,13 @@ package_rename_config:
   linux:
     package_name: com.allysoftsolutions.smsmitra
   macos:
-    bundle_id: com.allysoftsolutions.smsmitra
+    package_name: com.allysoftsolutions.smsmitra
 
 flutter_launcher_icons:
   android: "launcher_icon"
   ios: true
   image_path: "assets/sms.png"
-  min_sdk_android: 21 # android min sdk min:16, default 21
+  min_sdk_android: 21
   web:
     generate: true
     image_path: "assets/sms.png"
@@ -67,14 +63,12 @@ flutter_launcher_icons:
   windows:
     generate: true
     image_path: "assets/sms.png"
-    icon_size: 48 # min:48, max:256, default: 48
+    icon_size: 48
   macos:
     generate: true
     image_path: "assets/sms.png"
 
 flutter:
-
   uses-material-design: true
-  
   assets:
-    - assets/
+    - assets/sms.png
