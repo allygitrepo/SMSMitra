@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'package:dio/dio.dart';
 import '../../core/constants/api_constants.dart';
 import '../../core/errors/app_exceptions.dart';
+import '../../core/utils/logger.dart';
 import 'storage_service.dart';
 
-/// Central API Service powered by Dio with automatic Auth and Error Interceptors.
+/// Central API Service powered by Dio with automatic Auth, Retry, and Sanitized Logging Interceptors.
 class ApiService {
   static final ApiService _instance = ApiService._internal();
   factory ApiService() => _instance;
@@ -23,7 +25,7 @@ class ApiService {
       ),
     );
 
-    // Auth & Token Injection Interceptor
+    // 1. Auth & Token Injection Interceptor
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) {
@@ -33,18 +35,75 @@ class ApiService {
           }
           return handler.next(options);
         },
-        onError: (DioException error, handler) {
+        onError: (DioException error, handler) async {
           if (error.response?.statusCode == 401) {
-            // Handle session expiration
-            StorageService.clearSession();
+            logger.w('ApiService: 401 Unauthorized detected. Broadcasting session expiry.');
+            await StorageService.notifySessionExpired();
           }
           return handler.next(error);
+        },
+      ),
+    );
+
+    // 2. Retry Interceptor for transient network glitches with exponential backoff
+    _dio.interceptors.add(
+      InterceptorsWrapper(
+        onError: (DioException error, handler) async {
+          final isGet = error.requestOptions.method.toUpperCase() == 'GET';
+          final shouldRetry = isGet && _isTransientError(error);
+          final currentRetry = error.requestOptions.extra['retryCount'] ?? 0;
+
+          if (shouldRetry && currentRetry < 2) {
+            final nextRetry = currentRetry + 1;
+            error.requestOptions.extra['retryCount'] = nextRetry;
+            final delayMs = 500 * (1 << (nextRetry - 1)); // 500ms, 1000ms
+
+            logger.i('ApiService: Retrying request ${error.requestOptions.path} (attempt $nextRetry/2 in ${delayMs}ms)...');
+            await Future.delayed(Duration(milliseconds: delayMs));
+
+            try {
+              final response = await _dio.fetch(error.requestOptions);
+              return handler.resolve(response);
+            } on DioException catch (retryError) {
+              return handler.next(retryError);
+            }
+          }
+          return handler.next(error);
+        },
+      ),
+    );
+
+    // 3. Sanitized Logging Interceptor
+    _dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) {
+          final sanitizedHeaders = Map<String, dynamic>.from(options.headers);
+          if (sanitizedHeaders.containsKey('Authorization')) {
+            sanitizedHeaders['Authorization'] = 'Bearer ***';
+          }
+          logger.d('HTTP [${options.method}] ${options.path} | Headers: $sanitizedHeaders');
+          return handler.next(options);
+        },
+        onResponse: (response, handler) {
+          logger.d('HTTP Response [${response.statusCode}] ${response.requestOptions.path}');
+          return handler.next(response);
         },
       ),
     );
   }
 
   Dio get client => _dio;
+
+  static bool _isTransientError(DioException error) {
+    if (error.type == DioExceptionType.connectionTimeout ||
+        error.type == DioExceptionType.sendTimeout ||
+        error.type == DioExceptionType.receiveTimeout ||
+        error.type == DioExceptionType.connectionError) {
+      return true;
+    }
+    final status = error.response?.statusCode;
+    return status == 502 || status == 503 || status == 504;
+  }
 
   /// Helper to wrap network execution with domain exception mapping
   Future<Response<T>> _execute<T>(Future<Response<T>> Function() request) async {

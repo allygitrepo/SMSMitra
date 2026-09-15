@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../cache/cache_service.dart';
 import '../models/user_model.dart';
@@ -12,6 +13,11 @@ class StorageService {
   );
   static const _tokenKey = 'auth_jwt_token';
   static String? _inMemoryToken;
+
+  static final _sessionExpiredController = StreamController<void>.broadcast();
+
+  /// Broadcast stream notifying listeners when the session has expired (e.g. 401 response).
+  static Stream<void> get sessionExpiredStream => _sessionExpiredController.stream;
 
   /// Initializes the storage service by initializing the underlying cache and loading token.
   static Future<void> init() async {
@@ -91,6 +97,12 @@ class StorageService {
     return _cache.getSettings();
   }
 
+  /// Notifies listeners that session has expired and clears local credentials.
+  static Future<void> notifySessionExpired() async {
+    await clearSession();
+    _sessionExpiredController.add(null);
+  }
+
   /// Clears user session, cached token, and local states.
   static Future<void> clearSession() async {
     _inMemoryToken = null;
@@ -99,3 +111,4 @@ class StorageService {
     await _cache.clearSession();
   }
 }
+

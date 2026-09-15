@@ -60,11 +60,16 @@ class CacheService {
 
   // --- Settings Cache ---
   Future<void> setSettings(SettingsModel settings) async {
-    final box = Hive.box<SettingsModel>(CacheBoxes.settings);
-    await box.put(CacheKeys.appSettings, settings);
+    if (Hive.isBoxOpen(CacheBoxes.settings)) {
+      final box = Hive.box<SettingsModel>(CacheBoxes.settings);
+      await box.put(CacheKeys.appSettings, settings);
+    }
   }
 
   SettingsModel getSettings() {
+    if (!Hive.isBoxOpen(CacheBoxes.settings)) {
+      return SettingsModel();
+    }
     return Hive.box<SettingsModel>(
           CacheBoxes.settings,
         ).get(CacheKeys.appSettings) ??
@@ -153,9 +158,15 @@ class CacheService {
 
   // --- Cleanup ---
   Future<void> clearSession() async {
-    await Hive.box<UserModel>(CacheBoxes.user).clear();
-    await Hive.box<CachedDataModel>(CacheBoxes.dashboard).clear();
-    await Hive.box<SmsLogModel>(CacheBoxes.history).clear();
+    if (Hive.isBoxOpen(CacheBoxes.user)) {
+      await Hive.box<UserModel>(CacheBoxes.user).clear();
+    }
+    if (Hive.isBoxOpen(CacheBoxes.dashboard)) {
+      await Hive.box<CachedDataModel>(CacheBoxes.dashboard).clear();
+    }
+    if (Hive.isBoxOpen(CacheBoxes.history)) {
+      await Hive.box<SmsLogModel>(CacheBoxes.history).clear();
+    }
     // Keep settings and queue for offline continuity
   }
 }

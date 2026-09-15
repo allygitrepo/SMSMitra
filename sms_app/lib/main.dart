@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -180,11 +181,32 @@ void main() async {
   runApp(const ProviderScope(child: SMSMitraApp()));
 }
 
-class SMSMitraApp extends ConsumerWidget {
+class SMSMitraApp extends ConsumerStatefulWidget {
   const SMSMitraApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SMSMitraApp> createState() => _SMSMitraAppState();
+}
+
+class _SMSMitraAppState extends ConsumerState<SMSMitraApp> {
+  StreamSubscription<void>? _sessionSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    _sessionSubscription = StorageService.sessionExpiredStream.listen((_) {
+      AppRouter.router.go(AppRouter.login);
+    });
+  }
+
+  @override
+  void dispose() {
+    _sessionSubscription?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final mode = ref.watch(themeModeProvider);
 
     return MaterialApp.router(
