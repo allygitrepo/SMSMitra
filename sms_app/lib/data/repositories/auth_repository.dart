@@ -3,18 +3,19 @@ import '../../core/errors/app_exceptions.dart';
 import '../models/user_model.dart';
 import '../services/auth_service.dart';
 import '../services/storage_service.dart';
+import '../providers/service_providers.dart';
 import '../providers/user_provider.dart';
 
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
-  return AuthRepository(ref);
+  return AuthRepository(ref, ref.watch(authServiceProvider));
 });
 
 /// Central Authentication Repository managing login, registration, token persistence, and profile lifecycle.
 class AuthRepository {
   final Ref _ref;
-  final AuthService _authService = AuthService();
+  final AuthService _authService;
 
-  AuthRepository(this._ref);
+  AuthRepository(this._ref, this._authService);
 
   /// Authenticates user and securely stores JWT token.
   Future<Map<String, dynamic>> login(String emailOrPhone, String password) async {

@@ -7,6 +7,8 @@ import '../../core/helpers/validation_helper.dart';
 import '../../core/helpers/snackbar_helper.dart';
 import '../../shared/widgets/custom_text_field.dart';
 import '../../shared/widgets/gradient_button.dart';
+import '../../shared/widgets/stat_card.dart';
+import '../../shared/widgets/confirm_bottom_sheet.dart';
 import '../settings/settings_provider.dart';
 import 'stats_provider.dart';
 import 'sms_controller.dart';
@@ -102,78 +104,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
 
 
   Future<bool> _showExitBottomSheet() async {
-    final result = await showModalBottomSheet<bool>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          color: Theme.of(context).cardColor,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 40,
-              height: 4,
-              margin: const EdgeInsets.only(bottom: 24),
-              decoration: BoxDecoration(
-                color: Colors.grey.withValues(alpha: 0.3),
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const Icon(Icons.exit_to_app_rounded, size: 48, color: Colors.orange),
-            const SizedBox(height: 16),
-            const Text(
-              'Exit Application?',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Are you sure you want to close SMS Mitra?',
-              style: TextStyle(color: Colors.grey),
-            ),
-            const SizedBox(height: 32),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => Navigator.pop(context, false),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      side: const BorderSide(color: Colors.orange),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(15),
-                      ),
-                    ),
-                    child: const Text('Cancel', style: TextStyle(color: Colors.orange)),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.pop(context, true),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.orange,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(15),
-                      ),
-                    ),
-                    child: const Text('Exit Now'),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-          ],
-        ),
-      ),
+    return await ConfirmBottomSheet.show(
+      context,
+      icon: Icons.exit_to_app_rounded,
+      title: 'Exit Application?',
+      message: 'Are you sure you want to close SMS Mitra?',
+      confirmLabel: 'Exit',
+      confirmColor: Colors.orange,
     );
-    return result ?? false;
   }
 
   @override
@@ -342,39 +280,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
     Color color, {
     bool isFullWidth = false,
   }) {
-    return Container(
-      width: isFullWidth ? double.infinity : null,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withValues(alpha: 0.1)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, color: color, size: 28),
-          const SizedBox(height: 12),
-          Text(label, style: const TextStyle(color: Colors.grey, fontSize: 13)),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-          ),
-          if (label == 'Remaining' && value != '∞') ...[
-            const SizedBox(height: 8),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: LinearProgressIndicator(
-                value: _calculateProgress(value),
-                backgroundColor: color.withValues(alpha: 0.1),
-                valueColor: AlwaysStoppedAnimation<Color>(color),
-                minHeight: 4,
-              ),
-            ),
-          ],
-        ],
-      ),
+    return StatCard(
+      label: label,
+      value: value,
+      icon: icon,
+      color: color,
+      isFullWidth: isFullWidth,
+      progress: (label == 'Remaining' && value != '∞') ? _calculateProgress(value) : null,
     );
   }
 

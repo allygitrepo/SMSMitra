@@ -6,21 +6,32 @@ import '../../data/models/sim_model.dart';
 import '../../data/services/storage_service.dart';
 import '../../data/services/sim_service.dart';
 import '../../data/services/sms_api_service.dart';
+import '../../data/providers/service_providers.dart';
 import '../../core/theme/theme_provider.dart';
 
 /// Provider for managing app settings state.
 final settingsProvider = StateNotifierProvider<SettingsNotifier, SettingsModel>(
   (ref) {
-    return SettingsNotifier(ref);
+    return SettingsNotifier(
+      ref: ref,
+      simService: ref.watch(simServiceProvider),
+      smsApi: ref.watch(smsApiServiceProvider),
+    );
   },
 );
 
 class SettingsNotifier extends StateNotifier<SettingsModel> {
   final Ref ref;
-  final _simService = SimService();
-  final _smsApi = SmsApiService();
+  final SimService _simService;
+  final SmsApiService _smsApi;
 
-  SettingsNotifier(this.ref) : super(StorageService.getSettings());
+  SettingsNotifier({
+    required this.ref,
+    SimService? simService,
+    SmsApiService? smsApi,
+  })  : _simService = simService ?? SimService(),
+        _smsApi = smsApi ?? SmsApiService(),
+        super(StorageService.getSettings());
 
   Future<void> syncWithServer() async {
     final user = StorageService.getUser();

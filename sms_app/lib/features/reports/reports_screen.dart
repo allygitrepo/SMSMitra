@@ -9,6 +9,9 @@ import '../../data/models/settings_model.dart';
 import '../../features/reports/reports_provider.dart';
 import '../../features/settings/settings_provider.dart';
 import '../../data/services/socket_service.dart';
+import '../../shared/widgets/stat_card.dart';
+import '../../shared/widgets/status_badge.dart';
+import '../../shared/widgets/empty_state_widget.dart';
 
 class ReportsScreen extends ConsumerStatefulWidget {
   const ReportsScreen({super.key});
@@ -277,26 +280,10 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with WidgetsBindi
 
   Widget _buildStatCard(String label, int count, Color color) {
     return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withValues(alpha: 0.3)),
-        ),
-        child: Column(
-          children: [
-            Text(
-              label,
-              style: TextStyle(color: color, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              '$count',
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-          ],
-        ),
+      child: StatCard(
+        label: label,
+        value: '$count',
+        color: color,
       ),
     );
   }
@@ -344,7 +331,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with WidgetsBindi
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      _buildStatusChip(log.status),
+                      StatusBadge(status: log.status),
                       if (log.status == 'failed' && log.errorMessage != null)
                         Padding(
                           padding: const EdgeInsets.only(top: 4),
@@ -365,42 +352,11 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with WidgetsBindi
     );
   }
 
-  Widget _buildStatusChip(String? status) {
-    Color color = Colors.grey;
-    if (status == 'sent') color = Colors.green;
-    if (status == 'failed') color = Colors.red;
-    if (status == 'pending') color = Colors.orange;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Text(
-        status?.toUpperCase() ?? 'UNKNOWN',
-        style: TextStyle(
-          color: color,
-          fontSize: 10,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-    );
-  }
-
   Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.notes, size: 64, color: Colors.grey.withValues(alpha: 0.5)),
-          const SizedBox(height: 16),
-          const Text(
-            'No SMS records found for the selected filters',
-            style: TextStyle(color: Colors.grey),
-          ),
-        ],
-      ),
+    return const EmptyStateWidget(
+      icon: Icons.notes_rounded,
+      title: 'No SMS records found',
+      description: 'Try adjusting your date range or SIM filter.',
     );
   }
 }

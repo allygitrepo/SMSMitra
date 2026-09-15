@@ -2,22 +2,27 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/models/sim_model.dart';
 import '../../data/models/sms_stats_model.dart';
-import '../../data/services/sim_service.dart';
 import '../../data/services/storage_service.dart';
 import '../../data/services/sms_api_service.dart';
 import '../../data/cache/cache_manager.dart';
+import '../../data/providers/service_providers.dart';
 
 /// Provider that fetches available SIM cards from the device.
 final simsProvider = FutureProvider<List<SimModel>>((ref) async {
-  final simService = SimService();
+  final simService = ref.watch(simServiceProvider);
   return await simService.getAvailableSims();
 });
 
 class SmsStatsNotifier extends StateNotifier<SmsStatsModel> {
-  final _apiService = SmsApiService();
-  final _cache = CacheManager();
+  final SmsApiService _apiService;
+  final CacheManager _cache;
 
-  SmsStatsNotifier() : super(const SmsStatsModel()) {
+  SmsStatsNotifier({
+    SmsApiService? apiService,
+    CacheManager? cache,
+  })  : _apiService = apiService ?? SmsApiService(),
+        _cache = cache ?? CacheManager(),
+        super(const SmsStatsModel()) {
     // Load cache immediately
     final cached = _cache.getCachedStats();
     if (cached != null) {
@@ -69,5 +74,7 @@ class SmsStatsNotifier extends StateNotifier<SmsStatsModel> {
 /// Provider for tracking daily SMS statistics reactively.
 final smsStatsProvider =
     StateNotifierProvider<SmsStatsNotifier, SmsStatsModel>((ref) {
-  return SmsStatsNotifier();
+  return SmsStatsNotifier(
+    apiService: ref.watch(smsApiServiceProvider),
+  );
 });

@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/models/sms_log_model.dart';
 import '../../data/services/sms_api_service.dart';
 import '../../data/services/storage_service.dart';
+import '../../data/providers/service_providers.dart';
 
 class ReportsState {
   final Map<String, int> stats;
@@ -46,9 +47,11 @@ class ReportsState {
 }
 
 class ReportsNotifier extends StateNotifier<ReportsState> {
-  final _apiService = SmsApiService();
+  final SmsApiService _apiService;
 
-  ReportsNotifier() : super(const ReportsState());
+  ReportsNotifier({SmsApiService? apiService})
+      : _apiService = apiService ?? SmsApiService(),
+        super(const ReportsState());
 
   Future<void> init() async {
     await fetchReports();
@@ -106,5 +109,7 @@ class ReportsNotifier extends StateNotifier<ReportsState> {
 }
 
 final reportsProvider = StateNotifierProvider<ReportsNotifier, ReportsState>((ref) {
-  return ReportsNotifier();
+  return ReportsNotifier(
+    apiService: ref.watch(smsApiServiceProvider),
+  );
 });
