@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
-/// A reusable text field widget with consistent styling.
+/// A reusable, highly accessible text form field widget with consistent styling,
+/// keyboard action handling, input formatting, and autofill integration.
 class CustomTextField extends StatefulWidget {
   final String label;
   final String hint;
@@ -9,6 +11,16 @@ class CustomTextField extends StatefulWidget {
   final String? Function(String?)? validator;
   final bool isPassword;
   final TextInputType keyboardType;
+  final TextInputAction? textInputAction;
+  final FocusNode? focusNode;
+  final void Function(String)? onFieldSubmitted;
+  final void Function(String)? onChanged;
+  final List<TextInputFormatter>? inputFormatters;
+  final Iterable<String>? autofillHints;
+  final TextCapitalization textCapitalization;
+  final bool enabled;
+  final int? maxLength;
+  final bool autocorrect;
 
   const CustomTextField({
     super.key,
@@ -19,6 +31,16 @@ class CustomTextField extends StatefulWidget {
     this.validator,
     this.isPassword = false,
     this.keyboardType = TextInputType.text,
+    this.textInputAction,
+    this.focusNode,
+    this.onFieldSubmitted,
+    this.onChanged,
+    this.inputFormatters,
+    this.autofillHints,
+    this.textCapitalization = TextCapitalization.none,
+    this.enabled = true,
+    this.maxLength,
+    this.autocorrect = false,
   });
 
   @override
@@ -54,13 +76,25 @@ class _CustomTextFieldState extends State<CustomTextField> {
           validator: widget.validator,
           obscureText: _obscureText,
           keyboardType: widget.keyboardType,
+          textInputAction: widget.textInputAction,
+          focusNode: widget.focusNode,
+          onFieldSubmitted: widget.onFieldSubmitted,
+          onChanged: widget.onChanged,
+          inputFormatters: widget.inputFormatters,
+          autofillHints: widget.autofillHints,
+          textCapitalization: widget.textCapitalization,
+          enabled: widget.enabled,
+          maxLength: widget.maxLength,
+          autocorrect: widget.autocorrect,
           decoration: InputDecoration(
             hintText: widget.hint,
             prefixIcon: Icon(widget.icon, size: 20),
+            counterText: '', // Hide default counter when maxLength is set unless desired
             suffixIcon: widget.isPassword
                 ? IconButton(
+                    tooltip: _obscureText ? 'Show password' : 'Hide password',
                     icon: Icon(
-                      _obscureText ? Icons.visibility_off : Icons.visibility,
+                      _obscureText ? Icons.visibility_off_outlined : Icons.visibility_outlined,
                       size: 20,
                     ),
                     onPressed: () {

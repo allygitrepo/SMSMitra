@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../../core/helpers/snackbar_helper.dart';
+import '../../core/helpers/validation_helper.dart';
 import '../../core/routes/app_router.dart';
 import '../../data/models/sim_model.dart';
 import '../../data/models/settings_model.dart';
@@ -397,7 +399,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with WidgetsBin
                 Expanded(
                   child: TextField(
                     controller: _limitController,
-                    keyboardType: TextInputType.number,
+                    keyboardType: const TextInputType.numberWithOptions(signed: true),
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(RegExp(r'^-?\d*')),
+                    ],
                     decoration: InputDecoration(
                       labelText: 'SMS Limit',
                       isDense: true,
@@ -405,16 +410,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with WidgetsBin
                         borderRadius: BorderRadius.circular(8),
                       ),
                       helperText:
-                          settings.dailySmsLimit == -1 ? 'Unlimited' : null,
+                          settings.dailySmsLimit == -1 ? 'Unlimited (-1)' : 'Daily Quota',
+                      errorText: ValidationHelper.validateSmsLimit(_limitController.text),
                     ),
                     onChanged: (val) {
-                      final limit = int.tryParse(val);
-                      if (limit != null && limit >= -1) {
+                      final error = ValidationHelper.validateSmsLimit(val);
+                      if (error == null) {
+                        final limit = int.parse(val.trim());
                         notifier.updateLimit(limit);
-                      } else if (limit != null && limit < -1) {
-                        _limitController.text = '-1';
-                        notifier.updateLimit(-1);
                       }
+                      setState(() {});
                     },
                   ),
                 ),

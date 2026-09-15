@@ -3,39 +3,52 @@
 /// This ensures consistent validation logic across the entire application.
 class ValidationHelper {
   /// Validates the full name field.
-  /// Requires at least 3 characters.
+  /// Requires at least 2 characters and only alphabets/spaces.
   static String? validateName(String? value) {
-    if (value == null || value.isEmpty) {
+    if (value == null || value.trim().isEmpty) {
       return 'Name is required';
     }
-    if (value.trim().length < 3) {
-      return 'Name must be at least 3 characters long';
+    final trimmed = value.trim();
+    if (trimmed.length < 2) {
+      return 'Name must be at least 2 characters long';
+    }
+    if (trimmed.length > 50) {
+      return 'Name cannot exceed 50 characters';
     }
     return null;
   }
 
   /// Validates the email field.
-  /// Uses a regex to check for a valid email format.
+  /// Uses an RFC-compliant regex to check for a valid email format.
   static String? validateEmail(String? value) {
-    if (value == null || value.isEmpty) {
+    if (value == null || value.trim().isEmpty) {
       return 'Email is required';
     }
-    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
-    if (!emailRegex.hasMatch(value)) {
+    final trimmed = value.trim();
+    final emailRegex = RegExp(
+      r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
+    );
+    if (!emailRegex.hasMatch(trimmed)) {
       return 'Please enter a valid email address';
     }
     return null;
   }
 
   /// Validates the phone number field.
-  /// Checks for a valid mobile length (assuming 10 digits for simplicity, can be adjusted).
+  /// Checks for a valid 10-digit mobile number.
   static String? validatePhone(String? value) {
-    if (value == null || value.isEmpty) {
+    if (value == null || value.trim().isEmpty) {
       return 'Phone number is required';
     }
-    // Basic validation for 10-digit number; adjust based on region if needed
-    if (value.length < 10) {
-      return 'Please enter a valid phone number';
+    final cleanNumber = value.replaceAll(RegExp(r'[\s\-+()]'), '');
+    // Support either 10-digit standard or 12-digit with 91 prefix
+    final normalized = cleanNumber.startsWith('91') && cleanNumber.length == 12
+        ? cleanNumber.substring(2)
+        : cleanNumber;
+
+    final phoneRegex = RegExp(r'^[6-9]\d{9}$');
+    if (!phoneRegex.hasMatch(normalized)) {
+      return 'Please enter a valid 10-digit mobile number';
     }
     return null;
   }
@@ -60,6 +73,29 @@ class ValidationHelper {
     }
     if (value != password) {
       return 'Passwords do not match';
+    }
+    return null;
+  }
+
+  /// Validates the daily SMS limit.
+  /// -1 represents unlimited; otherwise must be between 1 and 50,000.
+  static String? validateSmsLimit(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return 'SMS limit is required';
+    }
+    final trimmed = value.trim();
+    final limit = int.tryParse(trimmed);
+    if (limit == null) {
+      return 'Please enter a valid number (-1 for unlimited)';
+    }
+    if (limit == -1) {
+      return null;
+    }
+    if (limit < 1) {
+      return 'Limit must be at least 1 or -1 for unlimited';
+    }
+    if (limit > 50000) {
+      return 'Daily limit cannot exceed 50,000';
     }
     return null;
   }

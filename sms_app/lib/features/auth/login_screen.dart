@@ -20,11 +20,25 @@ class LoginScreen extends ConsumerStatefulWidget {
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _identityController = TextEditingController(); // Email or Phone
+  final _identityController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _emailFocus = FocusNode();
+  final _passwordFocus = FocusNode();
   bool _isLoading = false;
 
+  @override
+  void dispose() {
+    _identityController.dispose();
+    _passwordController.dispose();
+    _emailFocus.dispose();
+    _passwordFocus.dispose();
+    super.dispose();
+  }
+
   Future<void> _handleLogin() async {
+    // Dismiss soft keyboard
+    FocusScope.of(context).unfocus();
+
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
 
@@ -63,78 +77,92 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Center(
-                    child: Image.asset(
-                      'assets/sms.png',
-                      width: 150,
-                      height: 150,
-                      fit: BoxFit.contain,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  const Text(
-                    'Welcome Back!',
-                    style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Login to continue sending messages.',
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                  const SizedBox(height: 40),
-
-                  CustomTextField(
-                    label: 'Email',
-                    hint: 'Enter registered email',
-                    icon: Icons.email_outlined,
-                    controller: _identityController,
-                    keyboardType: TextInputType.emailAddress,
-                    validator: ValidationHelper.validateEmail,
-                  ),
-
-                  CustomTextField(
-                    label: 'Password',
-                    hint: 'Enter your password',
-                    icon: Icons.lock_outline,
-                    controller: _passwordController,
-                    isPassword: true,
-                    validator: ValidationHelper.validatePassword,
-                  ),
-
-                  const SizedBox(height: 20),
-                  GradientButton(
-                    text: 'Login',
-                    onPressed: _handleLogin,
-                    isLoading: _isLoading,
-                  ),
-
-                  const SizedBox(height: 24),
-                  Row(
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => FocusScope.of(context).unfocus(),
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: AutofillGroup(
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Text("Don't have an account? "),
-                      GestureDetector(
-                        onTap: () => context.go(AppRouter.register),
-                        child: const Text(
-                          'Register',
-                          style: TextStyle(
-                            color: Colors.orange,
-                            fontWeight: FontWeight.bold,
-                          ),
+                      Center(
+                        child: Image.asset(
+                          'assets/sms.png',
+                          width: 150,
+                          height: 150,
+                          fit: BoxFit.contain,
                         ),
+                      ),
+                      const SizedBox(height: 24),
+                      const Text(
+                        'Welcome Back!',
+                        style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Login to continue sending messages.',
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                      const SizedBox(height: 40),
+
+                      CustomTextField(
+                        label: 'Email',
+                        hint: 'Enter registered email',
+                        icon: Icons.email_outlined,
+                        controller: _identityController,
+                        focusNode: _emailFocus,
+                        keyboardType: TextInputType.emailAddress,
+                        textInputAction: TextInputAction.next,
+                        autofillHints: const [AutofillHints.email, AutofillHints.username],
+                        validator: ValidationHelper.validateEmail,
+                        onFieldSubmitted: (_) => _passwordFocus.requestFocus(),
+                      ),
+
+                      CustomTextField(
+                        label: 'Password',
+                        hint: 'Enter your password',
+                        icon: Icons.lock_outline,
+                        controller: _passwordController,
+                        focusNode: _passwordFocus,
+                        isPassword: true,
+                        textInputAction: TextInputAction.done,
+                        autofillHints: const [AutofillHints.password],
+                        validator: ValidationHelper.validatePassword,
+                        onFieldSubmitted: (_) => _handleLogin(),
+                      ),
+
+                      const SizedBox(height: 20),
+                      GradientButton(
+                        text: 'Login',
+                        onPressed: _handleLogin,
+                        isLoading: _isLoading,
+                      ),
+
+                      const SizedBox(height: 24),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Text("Don't have an account? "),
+                          GestureDetector(
+                            onTap: () => context.go(AppRouter.register),
+                            child: const Text(
+                              'Register',
+                              style: TextStyle(
+                                color: Colors.orange,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                ],
+                ),
               ),
             ),
           ),

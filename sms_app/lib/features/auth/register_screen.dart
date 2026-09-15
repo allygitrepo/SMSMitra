@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/helpers/validation_helper.dart';
@@ -25,9 +26,34 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmController = TextEditingController();
+
+  final _nameFocus = FocusNode();
+  final _emailFocus = FocusNode();
+  final _phoneFocus = FocusNode();
+  final _passwordFocus = FocusNode();
+  final _confirmFocus = FocusNode();
+
   bool _isLoading = false;
 
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    _phoneController.dispose();
+    _passwordController.dispose();
+    _confirmController.dispose();
+    _nameFocus.dispose();
+    _emailFocus.dispose();
+    _phoneFocus.dispose();
+    _passwordFocus.dispose();
+    _confirmFocus.dispose();
+    super.dispose();
+  }
+
   Future<void> _handleRegister() async {
+    // Dismiss soft keyboard
+    FocusScope.of(context).unfocus();
+
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
 
@@ -62,93 +88,131 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 20),
-                const Text(
-                  'Create Account',
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Join SMSMitra and start sending messages!',
-                  style: TextStyle(color: Colors.grey),
-                ),
-                const SizedBox(height: 32),
-                CustomTextField(
-                  label: 'Full Name',
-                  hint: 'Enter your name',
-                  icon: Icons.person_outline,
-                  controller: _nameController,
-                  validator: ValidationHelper.validateName,
-                ),
-                CustomTextField(
-                  label: 'Email Address',
-                  hint: 'Enter your email',
-                  icon: Icons.email_outlined,
-                  controller: _emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  validator: ValidationHelper.validateEmail,
-                ),
-                CustomTextField(
-                  label: 'Phone Number',
-                  hint: 'Enter your phone number',
-                  icon: Icons.phone_android_outlined,
-                  controller: _phoneController,
-                  keyboardType: TextInputType.phone,
-                  validator: ValidationHelper.validatePhone,
-                ),
-                CustomTextField(
-                  label: 'Password',
-                  hint: 'Enter password',
-                  icon: Icons.lock_outline,
-                  controller: _passwordController,
-                  isPassword: true,
-                  validator: ValidationHelper.validatePassword,
-                ),
-                CustomTextField(
-                  label: 'Confirm Password',
-                  hint: 'Confirm your password',
-                  icon: Icons.lock_reset_outlined,
-                  controller: _confirmController,
-                  isPassword: true,
-                  validator: (val) => ValidationHelper.validateConfirmPassword(
-                    val,
-                    _passwordController.text,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                GradientButton(
-                  text: 'Register Now',
-                  onPressed: _handleRegister,
-                  isLoading: _isLoading,
-                ),
-                const SizedBox(height: 24),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => FocusScope.of(context).unfocus(),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24.0),
+            child: AutofillGroup(
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text("Already have an account? "),
-                    GestureDetector(
-                      onTap: () => context.go(AppRouter.login),
-                      child: const Text(
-                        'Login',
-                        style: TextStyle(
-                          color: Colors.orange,
-                          fontWeight: FontWeight.bold,
-                        ),
+                    const SizedBox(height: 20),
+                    const Text(
+                      'Create Account',
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
                       ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Join SMSMitra and start sending messages!',
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                    const SizedBox(height: 32),
+
+                    CustomTextField(
+                      label: 'Full Name',
+                      hint: 'Enter your full name',
+                      icon: Icons.person_outline,
+                      controller: _nameController,
+                      focusNode: _nameFocus,
+                      textInputAction: TextInputAction.next,
+                      textCapitalization: TextCapitalization.words,
+                      autofillHints: const [AutofillHints.name],
+                      validator: ValidationHelper.validateName,
+                      onFieldSubmitted: (_) => _emailFocus.requestFocus(),
+                    ),
+
+                    CustomTextField(
+                      label: 'Email Address',
+                      hint: 'Enter your email',
+                      icon: Icons.email_outlined,
+                      controller: _emailController,
+                      focusNode: _emailFocus,
+                      keyboardType: TextInputType.emailAddress,
+                      textInputAction: TextInputAction.next,
+                      autofillHints: const [AutofillHints.email],
+                      validator: ValidationHelper.validateEmail,
+                      onFieldSubmitted: (_) => _phoneFocus.requestFocus(),
+                    ),
+
+                    CustomTextField(
+                      label: 'Phone Number',
+                      hint: 'Enter 10-digit mobile number',
+                      icon: Icons.phone_android_outlined,
+                      controller: _phoneController,
+                      focusNode: _phoneFocus,
+                      keyboardType: TextInputType.phone,
+                      textInputAction: TextInputAction.next,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                        LengthLimitingTextInputFormatter(10),
+                      ],
+                      autofillHints: const [AutofillHints.telephoneNumber],
+                      validator: ValidationHelper.validatePhone,
+                      onFieldSubmitted: (_) => _passwordFocus.requestFocus(),
+                    ),
+
+                    CustomTextField(
+                      label: 'Password',
+                      hint: 'Enter password (min 6 characters)',
+                      icon: Icons.lock_outline,
+                      controller: _passwordController,
+                      focusNode: _passwordFocus,
+                      isPassword: true,
+                      textInputAction: TextInputAction.next,
+                      autofillHints: const [AutofillHints.newPassword],
+                      validator: ValidationHelper.validatePassword,
+                      onFieldSubmitted: (_) => _confirmFocus.requestFocus(),
+                    ),
+
+                    CustomTextField(
+                      label: 'Confirm Password',
+                      hint: 'Confirm your password',
+                      icon: Icons.lock_reset_outlined,
+                      controller: _confirmController,
+                      focusNode: _confirmFocus,
+                      isPassword: true,
+                      textInputAction: TextInputAction.done,
+                      autofillHints: const [AutofillHints.newPassword],
+                      validator: (val) => ValidationHelper.validateConfirmPassword(
+                        val,
+                        _passwordController.text,
+                      ),
+                      onFieldSubmitted: (_) => _handleRegister(),
+                    ),
+
+                    const SizedBox(height: 12),
+                    GradientButton(
+                      text: 'Register Now',
+                      onPressed: _handleRegister,
+                      isLoading: _isLoading,
+                    ),
+
+                    const SizedBox(height: 24),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Text("Already have an account? "),
+                        GestureDetector(
+                          onTap: () => context.go(AppRouter.login),
+                          child: const Text(
+                            'Login',
+                            style: TextStyle(
+                              color: Colors.orange,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-              ],
+              ),
             ),
           ),
         ),
