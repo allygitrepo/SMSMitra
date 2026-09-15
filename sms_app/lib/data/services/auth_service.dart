@@ -23,11 +23,17 @@ class AuthService {
 
       if (response.statusCode == 201) {
         final data = response.data;
+        final token = data['token'];
+        if (token != null) {
+          await StorageService.saveToken(token.toString());
+        }
+
         final newUser = user.copyWith(
           id: data['user']['_id'] ?? data['user']['id'],
           deviceCode: data['user']['deviceCode'],
         );
         await StorageService.saveUser(newUser);
+        await StorageService.setLoggedIn(true);
 
         // Sync FCM Token for the newly registered device
         await _updateFcmToken(data['user']['deviceCode']);
@@ -58,6 +64,11 @@ class AuthService {
 
       if (response.statusCode == 200) {
         final data = response.data;
+        final token = data['token'];
+        if (token != null) {
+          await StorageService.saveToken(token.toString());
+        }
+
         final userData = data['user'];
 
         // Create or update local user model with server data
@@ -105,7 +116,7 @@ class AuthService {
         );
       }
     } catch (e) {
-      print('FCM Token Sync Error: $e');
+      // Ignore FCM background error
     }
   }
 
@@ -143,6 +154,6 @@ class AuthService {
   }
 
   Future<void> logout() async {
-    await StorageService.setLoggedIn(false);
+    await StorageService.clearSession();
   }
 }

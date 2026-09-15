@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:sms_app/data/services/storage_service.dart';
 import '../../core/helpers/validation_helper.dart';
 import '../../core/helpers/snackbar_helper.dart';
 import '../../core/routes/app_router.dart';
+import '../../core/errors/app_exceptions.dart';
 import '../../data/models/user_model.dart';
-import '../../data/services/auth_service.dart';
-import '../../data/providers/user_provider.dart';
+import '../../data/repositories/auth_repository.dart';
 import '../../shared/widgets/custom_text_field.dart';
 import '../../shared/widgets/gradient_button.dart';
 
@@ -26,9 +25,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmController = TextEditingController();
-
   bool _isLoading = false;
-  final _authService = AuthService();
 
   Future<void> _handleRegister() async {
     if (_formKey.currentState!.validate()) {
@@ -41,24 +38,22 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         password: _passwordController.text,
       );
 
-      final result = await _authService.register(user);
+      try {
+        await ref.read(authRepositoryProvider).register(user);
 
-      if (mounted) setState(() => _isLoading = false);
+        if (!mounted) return;
+        setState(() => _isLoading = false);
 
-      if (result['success'] && mounted) {
-        ref.read(userProvider.notifier).refresh();
         MessageHelper.showSuccess(context, 'Registration successful!');
-
-        // Mark as logged in locally
-        await StorageService.setLoggedIn(true);
-
-        if (mounted) {
-          // Go straight to mandatory SIM setup
-          context.go(AppRouter.setupSim);
-        }
-      } else if (mounted) {
-        MessageHelper.showError(context,
-            result['message'] ?? 'Registration failed. Please try again.');
+        context.go(AppRouter.setupSim);
+      } on AppException catch (e) {
+        if (!mounted) return;
+        setState(() => _isLoading = false);
+        MessageHelper.showError(context, e.message);
+      } catch (e) {
+        if (!mounted) return;
+        setState(() => _isLoading = false);
+        MessageHelper.showError(context, 'Registration failed: ${e.toString()}');
       }
     }
   }

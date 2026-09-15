@@ -1,15 +1,33 @@
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../cache/cache_service.dart';
 import '../models/user_model.dart';
 import '../models/settings_model.dart';
 import '../models/app_log_model.dart';
 
-/// A service to handle all local storage operations, now powered by CacheService.
+/// A service to handle all local storage operations, powered by Hive and FlutterSecureStorage.
 class StorageService {
   static final _cache = CacheService();
+  static const _secureStorage = FlutterSecureStorage(
+    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+  );
+  static const _tokenKey = 'auth_jwt_token';
+  static String? _inMemoryToken;
 
-  /// Initializes the storage service by initializing the underlying cache.
+  /// Initializes the storage service by initializing the underlying cache and loading token.
   static Future<void> init() async {
     await _cache.init();
+    _inMemoryToken = await _secureStorage.read(key: _tokenKey);
+  }
+
+  /// Saves the JWT token securely.
+  static Future<void> saveToken(String token) async {
+    _inMemoryToken = token;
+    await _secureStorage.write(key: _tokenKey, value: token);
+  }
+
+  /// Retrieves the JWT token.
+  static String? getToken() {
+    return _inMemoryToken;
   }
 
   /// Adds a local application log for debugging.
@@ -71,5 +89,13 @@ class StorageService {
   /// Retrieves the saved app settings.
   static SettingsModel getSettings() {
     return _cache.getSettings();
+  }
+
+  /// Clears user session, cached token, and local states.
+  static Future<void> clearSession() async {
+    _inMemoryToken = null;
+    await _secureStorage.delete(key: _tokenKey);
+    await setLoggedIn(false);
+    await _cache.clearSession();
   }
 }

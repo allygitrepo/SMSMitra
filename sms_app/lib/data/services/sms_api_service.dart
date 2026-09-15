@@ -64,7 +64,7 @@ class SmsApiService {
     required String message,
     String? simId,
     required String status,
-    String? orgCode,
+    String? errorMessage,
   }) async {
     try {
       await _apiService.post(
@@ -75,11 +75,11 @@ class SmsApiService {
           'message': message,
           'simId': simId,
           'status': status,
-          'orgCode': orgCode,
+          'errorMessage': errorMessage,
         },
       );
     } catch (e) {
-      print('SmsApiService: Manual Log Error: $e');
+      // Ignore background log sync failure
     }
   }
 

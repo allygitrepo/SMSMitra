@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:sms_app/core/helpers/snackbar_helper.dart';
-import '../../data/services/auth_service.dart';
+import '../../core/helpers/snackbar_helper.dart';
+import '../../core/routes/app_router.dart';
+import '../../data/repositories/auth_repository.dart';
 import '../../data/providers/user_provider.dart';
 import '../../data/models/user_model.dart';
-import '../../core/routes/app_router.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -41,20 +41,23 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
     setState(() => _isSaving = true);
 
-    final result = await AuthService().updateProfile(
-      userId: user.id.toString(),
-      fullName: _nameController.text.trim(),
-      phoneNumber: _phoneController.text.trim(),
-    );
+    try {
+      final result = await ref.read(authRepositoryProvider).updateProfile(
+        fullName: _nameController.text.trim(),
+        phoneNumber: _phoneController.text.trim(),
+      );
 
-    if (mounted) {
-      setState(() => _isSaving = false);
-      if (result['success']) {
-        ref.read(userProvider.notifier).setUser(result['user']);
-        setState(() => _isEditing = false);
-        MessageHelper.showSuccess(context, 'Profile updated successfully');
-      } else {
-        MessageHelper.showError(context, result['message'] ?? 'Update failed');
+      if (mounted) {
+        setState(() {
+          _isSaving = false;
+          _isEditing = false;
+        });
+        MessageHelper.showSuccess(context, result['message'] ?? 'Profile updated successfully');
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isSaving = false);
+        MessageHelper.showError(context, e.toString());
       }
     }
   }
@@ -75,8 +78,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ),
           TextButton(
             onPressed: () async {
-              await AuthService().logout();
-              ref.read(userProvider.notifier).clear();
+              await ref.read(authRepositoryProvider).logout();
               if (context.mounted) {
                 context.go(AppRouter.login);
               }

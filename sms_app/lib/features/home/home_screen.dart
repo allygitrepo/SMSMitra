@@ -1,17 +1,15 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../../core/helpers/validation_helper.dart';
-import '../../core/helpers/snackbar_helper.dart';
-import '../../data/services/sms_service.dart';
-import '../../data/services/sms_api_service.dart';
-import 'package:sms_app/data/services/storage_service.dart';
-import '../../shared/widgets/custom_text_field.dart';
-import '../../shared/widgets/gradient_button.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/helpers/validation_helper.dart';
+import '../../core/helpers/snackbar_helper.dart';
+import '../../shared/widgets/custom_text_field.dart';
+import '../../shared/widgets/gradient_button.dart';
 import '../settings/settings_provider.dart';
 import 'stats_provider.dart';
+import 'sms_controller.dart';
 import '../../data/services/socket_service.dart';
 
 /// The main operational screen of the app where users send SMS.
@@ -26,8 +24,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   final _formKey = GlobalKey<FormState>();
   final _phoneController = TextEditingController();
   final _messageController = TextEditingController();
-  final _smsService = SmsService();
-  bool _isSending = false;
   bool _isSyncing = false;
   StreamSubscription<RemoteMessage>? _fcmSubscription;
   StreamSubscription<void>? _socketSubscription;
@@ -75,80 +71,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   Future<void> _handleSend() async {
     if (_formKey.currentState!.validate()) {
-      setState(() => _isSending = true);
+      final success = await ref.read(smsControllerProvider.notifier).sendQuickSms(
+        phone: _phoneController.text.trim(),
+        message: _messageController.text.trim(),
+      );
 
-      try {
-        final permission = await _smsService.requestPermissions();
-        if (!permission) {
-          if (mounted) {
-            MessageHelper.showError(
-              context,
-              'SMS Permission denied. Please enable in settings.',
-            );
-          }
-          return;
-        }
+      if (!mounted) return;
 
-        // Quota check
-        final stats = ref.read(smsStatsProvider);
-        final settings = ref.read(settingsProvider);
-        final sentToday = stats['sentToday'] ?? 0;
-        final dailyLimit = settings.dailySmsLimit;
-
-        if (sentToday >= dailyLimit) {
-          if (mounted) {
-            MessageHelper.showError(
-              context,
-              'Daily SMS limit reached ($dailyLimit). Please increase limit in settings.',
-            );
-          }
-          return;
-        }
-
-        final number = _phoneController.text.trim();
-        final message = _messageController.text.trim();
-
-        await _smsService.sendSms(number: number, message: message);
-
-        ref.read(settingsProvider);
-        final user = StorageService.getUser();
-        if (user != null) {
-          await SmsApiService().createManualLog(
-            userId: user.id.toString(),
-            phoneNumber: number,
-            message: message,
-            status: 'sent',
-            simId: settings.activeSimId,
-          );
-        }
-
-        if (mounted) {
-          ref.read(smsStatsProvider.notifier).incrementSent();
-          MessageHelper.showSuccess(context, 'SMS sent successfully!');
-          _messageController.clear(); // Clear message after success
-        }
-      } catch (e) {
-        // Log failure to server if user exists
-        final settings = ref.read(settingsProvider);
-        final user = StorageService.getUser();
-        if (user != null) {
-          await SmsApiService().createManualLog(
-            userId: user.id.toString(),
-            phoneNumber: _phoneController.text.trim(),
-            message: _messageController.text.trim(),
-            status: 'failed',
-            simId: settings.activeSimId,
-          );
-        }
-
-        if (mounted) {
-          ref.read(smsStatsProvider.notifier).incrementFailed();
-          MessageHelper.showError(context, e);
-        }
-      } finally {
-        if (mounted) {
-          setState(() => _isSending = false);
-        }
+      final smsState = ref.read(smsControllerProvider);
+      if (success) {
+        MessageHelper.showSuccess(context, smsState.successMessage ?? 'SMS dispatched successfully!');
+        _messageController.clear();
+      } else {
+        MessageHelper.showError(context, smsState.errorMessage ?? 'Failed to send SMS');
       }
     }
   }
@@ -484,7 +419,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             GradientButton(
               text: 'Send Now',
               onPressed: _handleSend,
-              isLoading: _isSending,
+              isLoading: ref.watch(smsControllerProvider).isSending,
             ),
           ],
         ),
