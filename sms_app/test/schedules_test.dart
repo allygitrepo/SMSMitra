@@ -137,11 +137,12 @@ void main() {
       const state = SchedulesState();
       expect(state.schedules, isEmpty);
       expect(state.isLoading, false);
-      expect(state.filterStatus, 'all');
+      expect(state.filterStatus, 'scheduled');
       expect(state.errorMessage, isNull);
       expect(state.counts['scheduled'], 0);
       expect(state.counts['completed'], 0);
       expect(state.counts['cancelled'], 0);
+      expect(state.hasDateFilter, false);
     });
 
     test('Counts and copyWith update state properly', () {
@@ -152,7 +153,7 @@ void main() {
           'completed': 1,
           'cancelled': 0,
         },
-        filterStatus: 'all',
+        filterStatus: 'scheduled',
       );
 
       expect(state.counts['scheduled'], 1);
@@ -160,9 +161,60 @@ void main() {
       expect(state.counts['cancelled'], 0);
       expect(state.schedules.length, 2);
 
-      final filteredState = state.copyWith(filterStatus: 'scheduled');
-      expect(filteredState.filterStatus, 'scheduled');
+      final filteredState = state.copyWith(filterStatus: 'all');
+      expect(filteredState.filterStatus, 'all');
       expect(filteredState.schedules.length, 2);
+    });
+
+    test('Date filtering in UI filters schedules correctly without API calls', () {
+      final today = DateTime.now();
+      final targetDate = DateTime(today.year, today.month, today.day, 10, 0);
+      final futureDate = targetDate.add(const Duration(days: 5));
+
+      final todayItem = ScheduledSmsModel(
+        id: 10,
+        userId: 1,
+        receiverNumber: '9991112223',
+        message: 'Today msg',
+        scheduledAt: targetDate,
+        status: 'scheduled',
+        createdAt: today,
+      );
+      final futureItem = ScheduledSmsModel(
+        id: 11,
+        userId: 1,
+        receiverNumber: '9991112224',
+        message: 'Future msg',
+        scheduledAt: futureDate,
+        status: 'scheduled',
+        createdAt: today,
+      );
+
+      final state = SchedulesState(schedules: [todayItem, futureItem]);
+
+      // No date filter => all items returned
+      expect(state.filteredSchedules.length, 2);
+
+      // Single date filter for today
+      final todayOnlyState = state.copyWith(
+        filterStartDate: DateTime(today.year, today.month, today.day),
+        filterEndDate: DateTime(today.year, today.month, today.day),
+      );
+      expect(todayOnlyState.hasDateFilter, true);
+      expect(todayOnlyState.filteredSchedules.length, 1);
+      expect(todayOnlyState.filteredSchedules.first.id, 10);
+
+      // Date range filter spanning both
+      final rangeState = state.copyWith(
+        filterStartDate: DateTime(today.year, today.month, today.day),
+        filterEndDate: DateTime(today.year, today.month, today.day + 6),
+      );
+      expect(rangeState.filteredSchedules.length, 2);
+
+      // Clear date filter
+      final clearedState = rangeState.copyWith(clearDateFilter: true);
+      expect(clearedState.hasDateFilter, false);
+      expect(clearedState.filteredSchedules.length, 2);
     });
   });
 

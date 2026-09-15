@@ -317,53 +317,324 @@ class _SchedulesScreenState extends ConsumerState<SchedulesScreen> with WidgetsB
               ),
             ),
 
-            // Filter Chips
+            // Filter Chips & Calendar Date Filter
             SliverToBoxAdapter(
               child: SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
                 child: Row(
                   children: [
-                    _buildFilterChip('All', 'all', schedulesState.filterStatus),
-                    const SizedBox(width: AppSpacing.xs),
                     _buildFilterChip('Upcoming', 'scheduled', schedulesState.filterStatus),
+                    const SizedBox(width: AppSpacing.xs),
+                    _buildFilterChip('All', 'all', schedulesState.filterStatus),
                     const SizedBox(width: AppSpacing.xs),
                     _buildFilterChip('Completed', 'completed', schedulesState.filterStatus),
                     const SizedBox(width: AppSpacing.xs),
                     _buildFilterChip('Cancelled', 'cancelled', schedulesState.filterStatus),
+                    const SizedBox(width: AppSpacing.xs),
+                    Container(
+                      height: 24,
+                      width: 1,
+                      margin: const EdgeInsets.symmetric(horizontal: 4),
+                      color: theme.dividerColor,
+                    ),
+                    const SizedBox(width: AppSpacing.xs),
+                    _buildCalendarChip(context, schedulesState, theme),
                   ],
                 ),
               ),
             ),
             const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xs)),
 
-            // List of Schedules / Google Calendar Timeline
+            // List of Schedules / Google Calendar Timeline (Filtered purely in UI)
             if (schedulesState.isLoading && schedulesState.schedules.isEmpty)
               const SliverFillRemaining(
                 hasScrollBody: false,
                 child: Center(child: CircularProgressIndicator()),
               )
-            else if (schedulesState.schedules.isEmpty)
+            else if (schedulesState.filteredSchedules.isEmpty)
               SliverFillRemaining(
                 hasScrollBody: false,
                 child: EmptyStateWidget(
-                  icon: Icons.alarm_off_rounded,
-                  title: 'No Scheduled Messages',
-                  description: schedulesState.filterStatus == 'all'
-                      ? 'You have not scheduled any outbound messages yet.'
-                      : 'No scheduled messages match the selected filter.',
-                  actionLabel: 'Schedule Now',
-                  onAction: () => ScheduleSmsSheet.show(context),
+                  icon: schedulesState.hasDateFilter ? Icons.event_busy_rounded : Icons.alarm_off_rounded,
+                  title: schedulesState.hasDateFilter ? 'No Messages on Selected Date' : 'No Scheduled Messages',
+                  description: schedulesState.hasDateFilter
+                      ? 'No scheduled messages match the filter for "${schedulesState.formattedDateFilter}".'
+                      : (schedulesState.filterStatus == 'all'
+                          ? 'You have not scheduled any outbound messages yet.'
+                          : 'No scheduled messages match the selected filter.'),
+                  actionLabel: schedulesState.hasDateFilter ? 'Clear Date Filter' : 'Schedule Now',
+                  onAction: () {
+                    if (schedulesState.hasDateFilter) {
+                      ref.read(schedulesProvider.notifier).clearDateFilter();
+                    } else {
+                      ScheduleSmsSheet.show(context);
+                    }
+                  },
                 ),
               )
             else
-              _buildTimelineSlivers(context, schedulesState.schedules, theme),
+              _buildTimelineSlivers(context, schedulesState.filteredSchedules, theme),
 
             const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xxl)),
           ],
         ),
       )
     : const FrequentScreen(),
+    );
+  }
+
+  Widget _buildCalendarChip(BuildContext context, SchedulesState state, ThemeData theme) {
+    final hasFilter = state.hasDateFilter;
+    return InkWell(
+      onTap: () => _showCalendarFilterDialog(context),
+      borderRadius: BorderRadius.circular(20),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: hasFilter ? AppColors.orange.withValues(alpha: 0.15) : theme.cardColor,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: hasFilter ? AppColors.orange : theme.dividerColor,
+            width: hasFilter ? 1.5 : 1.0,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.calendar_month_rounded,
+              size: 16,
+              color: hasFilter ? AppColors.orange : Colors.grey,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              hasFilter ? state.formattedDateFilter : 'Calendar Filter',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: hasFilter ? FontWeight.bold : FontWeight.w500,
+                color: hasFilter ? AppColors.orange : theme.textTheme.bodyMedium?.color,
+              ),
+            ),
+            if (hasFilter) ...[
+              const SizedBox(width: 4),
+              GestureDetector(
+                onTap: () {
+                  ref.read(schedulesProvider.notifier).clearDateFilter();
+                },
+                child: const Icon(
+                  Icons.cancel_rounded,
+                  size: 16,
+                  color: AppColors.orange,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showCalendarFilterDialog(BuildContext context) async {
+    final theme = Theme.of(context);
+    final schedulesNotifier = ref.read(schedulesProvider.notifier);
+    final schedulesState = ref.read(schedulesProvider);
+
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: theme.cardColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.modal)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.lg),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(
+                  child: Container(
+                    width: 36,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.withValues(alpha: 0.4),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppColors.orange.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(Icons.calendar_month_rounded, color: AppColors.orange, size: 20),
+                    ),
+                    const SizedBox(width: 12),
+                    const Text(
+                      'Filter by Calendar Date',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                    const Spacer(),
+                    if (schedulesState.hasDateFilter)
+                      TextButton.icon(
+                        onPressed: () {
+                          schedulesNotifier.clearDateFilter();
+                          Navigator.pop(ctx);
+                        },
+                        icon: const Icon(Icons.clear, size: 16, color: Colors.red),
+                        label: const Text('Reset', style: TextStyle(color: Colors.red, fontSize: 13)),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.md),
+
+                // Option 1: Single Date
+                ListTile(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+                  tileColor: theme.scaffoldBackgroundColor,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: BorderSide(color: theme.dividerColor),
+                  ),
+                  leading: const Icon(Icons.event_available_rounded, color: AppColors.orange),
+                  title: const Text('Single Specific Date', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                  subtitle: const Text('Filter scheduled SMS for one specific day', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                  trailing: const Icon(Icons.chevron_right_rounded, color: Colors.grey),
+                  onTap: () async {
+                    Navigator.pop(ctx);
+                    final now = DateTime.now();
+                    final picked = await showDatePicker(
+                      context: context,
+                      initialDate: schedulesState.filterStartDate ?? now,
+                      firstDate: DateTime(2024),
+                      lastDate: DateTime(2035),
+                      builder: (context, child) {
+                        return Theme(
+                          data: theme.copyWith(
+                            colorScheme: theme.colorScheme.copyWith(
+                              primary: AppColors.orange,
+                            ),
+                          ),
+                          child: child!,
+                        );
+                      },
+                    );
+                    if (picked != null) {
+                      schedulesNotifier.setDateFilter(picked);
+                    }
+                  },
+                ),
+                const SizedBox(height: AppSpacing.sm),
+
+                // Option 2: Date Range (From - To)
+                ListTile(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+                  tileColor: theme.scaffoldBackgroundColor,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: BorderSide(color: theme.dividerColor),
+                  ),
+                  leading: const Icon(Icons.date_range_rounded, color: AppColors.orange),
+                  title: const Text('Date Range (From - To)', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                  subtitle: const Text('Filter between starting and ending dates', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                  trailing: const Icon(Icons.chevron_right_rounded, color: Colors.grey),
+                  onTap: () async {
+                    Navigator.pop(ctx);
+                    final range = await showDateRangePicker(
+                      context: context,
+                      firstDate: DateTime(2024),
+                      lastDate: DateTime(2035),
+                      initialDateRange: schedulesState.filterStartDate != null && schedulesState.filterEndDate != null
+                          ? DateTimeRange(
+                              start: schedulesState.filterStartDate!,
+                              end: schedulesState.filterEndDate!,
+                            )
+                          : null,
+                      builder: (context, child) {
+                        return Theme(
+                          data: theme.copyWith(
+                            colorScheme: theme.colorScheme.copyWith(
+                              primary: AppColors.orange,
+                            ),
+                          ),
+                          child: child!,
+                        );
+                      },
+                    );
+                    if (range != null) {
+                      schedulesNotifier.setDateFilter(range.start, range.end);
+                    }
+                  },
+                ),
+                const SizedBox(height: AppSpacing.md),
+
+                // Quick Presets
+                const Text('Quick Presets', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
+                const SizedBox(height: AppSpacing.xs),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _buildQuickDateChip(
+                      label: 'Today',
+                      onTap: () {
+                        final now = DateTime.now();
+                        schedulesNotifier.setDateFilter(DateTime(now.year, now.month, now.day));
+                        Navigator.pop(ctx);
+                      },
+                    ),
+                    _buildQuickDateChip(
+                      label: 'Tomorrow',
+                      onTap: () {
+                        final tom = DateTime.now().add(const Duration(days: 1));
+                        schedulesNotifier.setDateFilter(DateTime(tom.year, tom.month, tom.day));
+                        Navigator.pop(ctx);
+                      },
+                    ),
+                    _buildQuickDateChip(
+                      label: 'Next 7 Days',
+                      onTap: () {
+                        final now = DateTime.now();
+                        final today = DateTime(now.year, now.month, now.day);
+                        final end = today.add(const Duration(days: 6));
+                        schedulesNotifier.setDateFilter(today, end);
+                        Navigator.pop(ctx);
+                      },
+                    ),
+                    _buildQuickDateChip(
+                      label: 'This Month',
+                      onTap: () {
+                        final now = DateTime.now();
+                        final firstDay = DateTime(now.year, now.month, 1);
+                        final lastDay = DateTime(now.year, now.month + 1, 0);
+                        schedulesNotifier.setDateFilter(firstDay, lastDay);
+                        Navigator.pop(ctx);
+                      },
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildQuickDateChip({required String label, required VoidCallback onTap}) {
+    return ActionChip(
+      label: Text(label, style: const TextStyle(fontSize: 12)),
+      backgroundColor: AppColors.orange.withValues(alpha: 0.1),
+      labelStyle: const TextStyle(color: AppColors.orange, fontWeight: FontWeight.w600),
+      side: BorderSide(color: AppColors.orange.withValues(alpha: 0.3)),
+      onPressed: onTap,
     );
   }
 

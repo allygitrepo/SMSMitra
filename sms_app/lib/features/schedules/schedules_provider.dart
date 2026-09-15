@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import '../../data/models/scheduled_sms_model.dart';
 import '../../data/services/scheduled_sms_service.dart';
 import '../../data/services/storage_service.dart';
@@ -9,6 +10,8 @@ class SchedulesState {
   final List<ScheduledSmsModel> schedules;
   final Map<String, int> counts;
   final String filterStatus;
+  final DateTime? filterStartDate;
+  final DateTime? filterEndDate;
   final bool isLoading;
   final bool isCreating;
   final String? errorMessage;
@@ -22,17 +25,51 @@ class SchedulesState {
       'cancelled': 0,
       'failed': 0,
     },
-    this.filterStatus = 'all',
+    this.filterStatus = 'scheduled',
+    this.filterStartDate,
+    this.filterEndDate,
     this.isLoading = false,
     this.isCreating = false,
     this.errorMessage,
     this.successMessage,
   });
 
+  bool get hasDateFilter => filterStartDate != null;
+
+  String get formattedDateFilter {
+    if (filterStartDate == null) return '';
+    final start = filterStartDate!;
+    final end = filterEndDate;
+    if (end == null || (start.year == end.year && start.month == end.month && start.day == end.day)) {
+      return DateFormat('d MMM yyyy').format(start);
+    }
+    if (start.year == end.year) {
+      return '${DateFormat('d MMM').format(start)} - ${DateFormat('d MMM yyyy').format(end)}';
+    }
+    return '${DateFormat('d MMM yyyy').format(start)} - ${DateFormat('d MMM yyyy').format(end)}';
+  }
+
+  List<ScheduledSmsModel> get filteredSchedules {
+    if (filterStartDate == null) return schedules;
+
+    final startDay = DateTime(filterStartDate!.year, filterStartDate!.month, filterStartDate!.day);
+    final endDay = filterEndDate != null
+        ? DateTime(filterEndDate!.year, filterEndDate!.month, filterEndDate!.day, 23, 59, 59, 999)
+        : DateTime(filterStartDate!.year, filterStartDate!.month, filterStartDate!.day, 23, 59, 59, 999);
+
+    return schedules.where((s) {
+      return s.scheduledAt.isAfter(startDay.subtract(const Duration(milliseconds: 1))) &&
+          s.scheduledAt.isBefore(endDay.add(const Duration(milliseconds: 1)));
+    }).toList();
+  }
+
   SchedulesState copyWith({
     List<ScheduledSmsModel>? schedules,
     Map<String, int>? counts,
     String? filterStatus,
+    DateTime? filterStartDate,
+    DateTime? filterEndDate,
+    bool clearDateFilter = false,
     bool? isLoading,
     bool? isCreating,
     String? errorMessage,
@@ -44,6 +81,8 @@ class SchedulesState {
       schedules: schedules ?? this.schedules,
       counts: counts ?? this.counts,
       filterStatus: filterStatus ?? this.filterStatus,
+      filterStartDate: clearDateFilter ? null : (filterStartDate ?? this.filterStartDate),
+      filterEndDate: clearDateFilter ? null : (filterEndDate ?? this.filterEndDate),
       isLoading: isLoading ?? this.isLoading,
       isCreating: isCreating ?? this.isCreating,
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
@@ -262,6 +301,17 @@ class SchedulesNotifier extends StateNotifier<SchedulesState> {
   void setFilter(String status) {
     state = state.copyWith(filterStatus: status);
     fetchSchedules();
+  }
+
+  void setDateFilter(DateTime start, [DateTime? end]) {
+    state = state.copyWith(
+      filterStartDate: start,
+      filterEndDate: end ?? start,
+    );
+  }
+
+  void clearDateFilter() {
+    state = state.copyWith(clearDateFilter: true);
   }
 }
 
