@@ -2,16 +2,16 @@ import 'package:pdf/pdf.dart' as pdf;
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:intl/intl.dart';
+import '../../data/models/sms_log_model.dart';
 
 class PdfGenerator {
   static Future<void> generateSmsReport({
-    required List<dynamic> logs,
+    required List<SmsLogModel> logs,
     required Map<String, int> stats,
     DateTime? startDate,
     DateTime? endDate,
   }) async {
     final doc = pw.Document();
-    final dateFormat = DateFormat('dd MMM yyyy, hh:mm a');
     final filterFormat = DateFormat('dd MMM yyyy');
 
     doc.addPage(
@@ -39,12 +39,12 @@ class PdfGenerator {
             if (startDate != null || endDate != null)
               pw.Text(
                 'Period: ${startDate != null ? filterFormat.format(startDate) : "Start"} to ${endDate != null ? filterFormat.format(endDate) : "End"}',
-                style: pw.TextStyle(
+                style: const pw.TextStyle(
                     fontSize: 12, color: pdf.PdfColors.grey700),
               ),
             pw.SizedBox(height: 20),
 
-            // Summary Stats
+            // Summary Stats Cards
             pw.Row(
               mainAxisAlignment: pw.MainAxisAlignment.spaceAround,
               children: [
@@ -61,14 +61,12 @@ class PdfGenerator {
             pw.TableHelper.fromTextArray(
               headers: ['Date', 'Receiver', 'Message', 'SIM', 'Status'],
               data: logs.map((log) {
-                final dateStr = log['createdAt']?.toString() ?? '';
-                final date = DateTime.parse(dateStr.replaceAll('Z', ''));
                 return [
-                  DateFormat('dd MMM, hh:mm a').format(date),
-                  log['receiverNumber'] ?? '',
-                  log['message'] ?? '',
-                  log['simId'] ?? '-',
-                  log['status'].toString().toUpperCase(),
+                  DateFormat('dd MMM, hh:mm a').format(log.createdAt),
+                  log.receiverNumber,
+                  log.message,
+                  log.simId ?? '-',
+                  log.status.toUpperCase(),
                 ];
               }).toList(),
               headerStyle: pw.TextStyle(

@@ -1,19 +1,22 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../data/models/sms_log_model.dart';
 import '../../data/services/sms_api_service.dart';
 import '../../data/services/storage_service.dart';
 
 class ReportsState {
   final Map<String, int> stats;
-  final List<dynamic> logs;
+  final List<SmsLogModel> logs;
   final bool isLoading;
+  final String? errorMessage;
   final DateTime? startDate;
   final DateTime? endDate;
   final String? simId;
 
-  ReportsState({
+  const ReportsState({
     this.stats = const {'pending': 0, 'sent': 0, 'failed': 0},
     this.logs = const [],
     this.isLoading = false,
+    this.errorMessage,
     this.startDate,
     this.endDate,
     this.simId,
@@ -21,8 +24,10 @@ class ReportsState {
 
   ReportsState copyWith({
     Map<String, int>? stats,
-    List<dynamic>? logs,
+    List<SmsLogModel>? logs,
     bool? isLoading,
+    String? errorMessage,
+    bool clearError = false,
     DateTime? startDate,
     DateTime? endDate,
     String? simId,
@@ -32,6 +37,7 @@ class ReportsState {
       stats: stats ?? this.stats,
       logs: logs ?? this.logs,
       isLoading: isLoading ?? this.isLoading,
+      errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
       startDate: startDate ?? this.startDate,
       endDate: endDate ?? this.endDate,
       simId: clearSim ? null : (simId ?? this.simId),
@@ -42,7 +48,7 @@ class ReportsState {
 class ReportsNotifier extends StateNotifier<ReportsState> {
   final _apiService = SmsApiService();
 
-  ReportsNotifier() : super(ReportsState());
+  ReportsNotifier() : super(const ReportsState());
 
   Future<void> init() async {
     await fetchReports();
@@ -52,7 +58,7 @@ class ReportsNotifier extends StateNotifier<ReportsState> {
     final user = StorageService.getUser();
     if (user == null) return;
 
-    state = state.copyWith(isLoading: true);
+    state = state.copyWith(isLoading: true, clearError: true);
 
     try {
       final data = await _apiService.getDetailedReports(
@@ -62,13 +68,21 @@ class ReportsNotifier extends StateNotifier<ReportsState> {
         simId: state.simId,
       );
 
+      final rawLogs = data['logs'] as List<dynamic>? ?? [];
+      final parsedLogs = rawLogs
+          .map((item) => SmsLogModel.fromJson(Map<String, dynamic>.from(item)))
+          .toList();
+
       state = state.copyWith(
-        stats: Map<String, int>.from(data['stats']),
-        logs: List<dynamic>.from(data['logs']),
+        stats: Map<String, int>.from(data['stats'] ?? {'pending': 0, 'sent': 0, 'failed': 0}),
+        logs: parsedLogs,
         isLoading: false,
       );
     } catch (e) {
-      state = state.copyWith(isLoading: false);
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: 'Unable to load reports. Please check your connection.',
+      );
     }
   }
 

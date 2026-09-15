@@ -1,12 +1,13 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:sms_app/features/home/stats_provider.dart';
 import '../../core/utils/pdf_generator.dart';
+import '../../data/models/sms_log_model.dart';
 import '../../features/reports/reports_provider.dart';
 import '../../features/settings/settings_provider.dart';
 import '../../data/services/socket_service.dart';
-import 'dart:async';
 
 class ReportsScreen extends ConsumerStatefulWidget {
   const ReportsScreen({super.key});
@@ -26,8 +27,9 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     });
 
     _socketSubscription = SocketService().statsUpdateStream.listen((_) {
-      debugPrint("ReportsScreen: Received Socket stats update trigger");
-      ref.read(reportsProvider.notifier).fetchReports();
+      if (mounted) {
+        ref.read(reportsProvider.notifier).fetchReports();
+      }
     });
   }
 
@@ -44,7 +46,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('SMS Reports'),
+        title: const Text('Reports & Logs', style: TextStyle(fontWeight: FontWeight.bold)),
         actions: [
           IconButton(
             icon: const Icon(Icons.picture_as_pdf),
@@ -68,6 +70,32 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
         children: [
           _buildFilterBar(context, state, settings),
           _buildStatCards(state.stats),
+          if (state.errorMessage != null)
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.red.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.error_outline, color: Colors.red, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      state.errorMessage!,
+                      style: const TextStyle(color: Colors.red, fontSize: 13),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () => ref.read(reportsProvider.notifier).fetchReports(),
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
+            ),
           Expanded(
             child: state.isLoading
                 ? const Center(child: CircularProgressIndicator())
@@ -263,7 +291,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     );
   }
 
-  Widget _buildLogsTable(List<dynamic> logs) {
+  Widget _buildLogsTable(List<SmsLogModel> logs) {
     final simsAsync = ref.watch(simsProvider);
 
     return SingleChildScrollView(
@@ -279,26 +307,23 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
             DataColumn(label: Text('Status')),
           ],
           rows: logs.map((log) {
-            final dateStr = log['createdAt']?.toString() ?? '';
-            final date = DateTime.tryParse(dateStr.replaceAll('Z', '')) ?? DateTime.now();
-
-            String simLabel = log['simId']?.toString() ?? '-';
+            String simLabel = log.simId ?? '-';
             simsAsync.whenData((sims) {
               try {
-                final sim = sims.firstWhere((s) => s.id == log['simId']?.toString());
+                final sim = sims.firstWhere((s) => s.id == log.simId);
                 simLabel = sim.carrierName;
               } catch (_) {}
             });
 
             return DataRow(
               cells: [
-                DataCell(Text(DateFormat('dd MMM, hh:mm a').format(date))),
-                DataCell(Text(log['receiverNumber'] ?? '')),
+                DataCell(Text(DateFormat('dd MMM, hh:mm a').format(log.createdAt))),
+                DataCell(Text(log.receiverNumber)),
                 DataCell(
                   Container(
                     constraints: const BoxConstraints(maxWidth: 180),
                     child: Text(
-                      log['message'] ?? '',
+                      log.message,
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
@@ -309,12 +334,12 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      _buildStatusChip(log['status']),
-                      if (log['status'] == 'failed' && log['errorMessage'] != null)
+                      _buildStatusChip(log.status),
+                      if (log.status == 'failed' && log.errorMessage != null)
                         Padding(
                           padding: const EdgeInsets.only(top: 4),
                           child: Text(
-                            log['errorMessage'],
+                            log.errorMessage!,
                             style: const TextStyle(fontSize: 9, color: Colors.red),
                             overflow: TextOverflow.ellipsis,
                           ),

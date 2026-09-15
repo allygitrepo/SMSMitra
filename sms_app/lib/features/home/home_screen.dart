@@ -171,13 +171,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final simsAsync = ref.watch(simsProvider);
 
     // Calculate dynamic stats
-    final int sentToday = stats['sentToday'] ?? 0;
+    final int sentToday = stats.sentToday;
     final int perSimLimit = settings.dailySmsLimit;
     final int activeSimCount = settings.simPriority.length;
 
     String remainingText = '∞';
     if (perSimLimit != -1) {
-      final int totalLimit = activeSimCount * perSimLimit;
+      final int totalLimit = activeSimCount > 0 ? activeSimCount * perSimLimit : perSimLimit;
       final int remaining = (totalLimit - sentToday).clamp(0, totalLimit);
       remainingText = remaining.toString();
     }
@@ -370,7 +370,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     try {
       final settings = ref.read(settingsProvider);
       final stats = ref.read(smsStatsProvider);
-      final int sentToday = stats['sentToday'] ?? 0;
+      final int sentToday = stats.sentToday;
       final int perSimLimit = settings.dailySmsLimit;
       final int activeSimCount = settings.simPriority.length;
       final int totalLimit = activeSimCount * perSimLimit;

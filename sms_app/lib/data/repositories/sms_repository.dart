@@ -36,7 +36,7 @@ class SmsRepository {
     // 2. Quota Check
     final settings = _ref.read(settingsProvider);
     final stats = _ref.read(smsStatsProvider);
-    final sentToday = stats['sentToday'] ?? 0;
+    final sentToday = stats.sentToday;
     final dailyLimit = settings.dailySmsLimit;
 
     if (dailyLimit != -1 && sentToday >= dailyLimit) {
