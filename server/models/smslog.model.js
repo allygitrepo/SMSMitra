@@ -31,18 +31,6 @@ const SmsLog = sequelize.define('SmsLog', {
     type: DataTypes.TEXT,
     allowNull: true,
   },
-  orgCode: {
-    type: DataTypes.STRING,
-    allowNull: true,
-  },
-  channel: {
-    type: DataTypes.ENUM('sms', 'whatsapp'),
-    defaultValue: 'sms',
-  },
-  /* telegramChatId: {
-    type: DataTypes.STRING,
-    allowNull: true,
-  }, */
 }, {
   timestamps: true,
 });

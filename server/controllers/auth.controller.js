@@ -37,10 +37,6 @@ exports.register = async (req, res) => {
         email: user.email,
         phoneNumber: user.phoneNumber,
         deviceCode: user.deviceCode,
-        whatsappInstanceKey: user.whatsappInstanceKey,
-        whatsappProfileImage: user.whatsappProfileImage,
-        whatsappPhone: user.whatsappPhone,
-        whatsappName: user.whatsappName
       },
       hasSimDetails: false // New user won't have sim details yet
     });
@@ -78,10 +74,6 @@ exports.login = async (req, res) => {
         email: user.email,
         phoneNumber: user.phoneNumber,
         deviceCode: user.deviceCode,
-        whatsappInstanceKey: user.whatsappInstanceKey,
-        whatsappProfileImage: user.whatsappProfileImage,
-        whatsappPhone: user.whatsappPhone,
-        whatsappName: user.whatsappName
       },
       hasSimDetails: !!simDetails
     });
@@ -126,10 +118,6 @@ exports.updateProfile = async (req, res) => {
         email: user.email,
         phoneNumber: user.phoneNumber,
         deviceCode: user.deviceCode,
-        whatsappInstanceKey: user.whatsappInstanceKey,
-        whatsappProfileImage: user.whatsappProfileImage,
-        whatsappPhone: user.whatsappPhone,
-        whatsappName: user.whatsappName
       }
     });
   } catch (error) {

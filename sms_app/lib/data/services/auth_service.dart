@@ -68,10 +68,6 @@ class AuthService {
           phoneNumber: userData['phoneNumber'] ?? '',
           password: password, // Keep password for re-auth if needed
           deviceCode: userData['deviceCode'],
-          whatsappInstanceKey: userData['whatsappInstanceKey'],
-          whatsappProfileImage: userData['whatsappProfileImage'],
-          whatsappPhone: userData['whatsappPhone'],
-          whatsappName: userData['whatsappName'],
         );
 
         await StorageService.saveUser(newUser);

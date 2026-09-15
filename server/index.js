@@ -47,7 +47,6 @@ const startServer = async () => {
   await connectDB();
 
   // Sync Database
-  // REQUIRED: alter: true is needed to add 'whatsapp' to the channel list in MySQL
   await sequelize.sync({ alter: true });
   console.log('Database synced with schema updates.');
 

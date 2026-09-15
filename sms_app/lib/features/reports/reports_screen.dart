@@ -44,7 +44,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Detailed Reports'),
+        title: const Text('SMS Reports'),
         actions: [
           IconButton(
             icon: const Icon(Icons.picture_as_pdf),
@@ -72,48 +72,10 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
             child: state.isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : state.logs.isEmpty
-                ? _buildEmptyState()
-                : _buildLogsTable(state.logs),
+                    ? _buildEmptyState()
+                    : _buildLogsTable(state.logs),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildOrgFilter(BuildContext context, ReportsState state) {
-    final theme = Theme.of(context);
-    return SizedBox(
-      height: 45,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        decoration: BoxDecoration(
-          border: Border.all(color: theme.dividerColor),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: DropdownButtonHideUnderline(
-          child: DropdownButton<String>(
-            value: state.orgCode ?? 'all',
-            isDense: true,
-            dropdownColor: theme.cardColor,
-            icon: Icon(Icons.business, color: theme.primaryColor, size: 16),
-            items: [
-              const DropdownMenuItem(value: 'all', child: Text('All Types')),
-              const DropdownMenuItem(value: 'none', child: Text('Personal')),
-              ...state.organizations.map((org) => DropdownMenuItem(
-                    value: org.orgCode,
-                    child: Text(org.orgName),
-                  )),
-            ],
-            onChanged: (val) {
-              ref.read(reportsProvider.notifier).updateOrgFilter(val);
-            },
-            style: TextStyle(
-              fontSize: 13,
-              color: theme.textTheme.bodyMedium?.color,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ),
       ),
     );
   }
@@ -144,11 +106,11 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                     lastDate: DateTime.now(),
                     initialDateRange:
                         state.startDate != null && state.endDate != null
-                        ? DateTimeRange(
-                            start: state.startDate!,
-                            end: state.endDate!,
-                          )
-                        : null,
+                            ? DateTimeRange(
+                                start: state.startDate!,
+                                end: state.endDate!,
+                              )
+                            : null,
                     builder: (context, child) {
                       return Theme(
                         data: theme.copyWith(
@@ -196,104 +158,69 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
               ),
             ),
             const SizedBox(width: 12),
-          _buildOrgFilter(context, state),
-          const SizedBox(width: 12),
-          SizedBox(
-            height: 45,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              decoration: BoxDecoration(
-                border: Border.all(color: theme.dividerColor),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  value: state.channel ?? 'all',
-                  isDense: true,
-                  dropdownColor: theme.cardColor,
-                  icon: Icon(Icons.filter_list, color: theme.primaryColor, size: 16),
-                  items: const [
-                    DropdownMenuItem(value: 'all', child: Text('All Channels')),
-                    DropdownMenuItem(value: 'sms', child: Text('SMS')),
-                    DropdownMenuItem(value: 'whatsapp', child: Text('WhatsApp')),
-                  ],
-                  onChanged: (val) {
-                    ref.read(reportsProvider.notifier).updateChannelFilter(val);
-                  },
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: theme.textTheme.bodyMedium?.color,
-                    fontWeight: FontWeight.w500,
-                  ),
+            SizedBox(
+              height: 45,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                decoration: BoxDecoration(
+                  border: Border.all(color: theme.dividerColor),
+                  borderRadius: BorderRadius.circular(10),
                 ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          SizedBox(
-            height: 45,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              decoration: BoxDecoration(
-                border: Border.all(color: theme.dividerColor),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  value: state.simId ?? 'all',
-                  isDense: true,
-                  dropdownColor: theme.cardColor,
-                  icon: Icon(Icons.arrow_drop_down, color: theme.primaryColor),
-                  items: [
-                    DropdownMenuItem<String>(
-                      value: 'all',
-                      child: Text(
-                        'All SIMs',
-                        style: TextStyle(
-                          color: theme.textTheme.bodyMedium?.color,
-                        ),
-                      ),
-                    ),
-                    ...settings.simPriority.map((simId) {
-                      String label =
-                          'SIM ${settings.simPriority.indexOf(simId) + 1}';
-
-                      // Try to find the carrier name from detected sims
-                      simsAsync.whenData((sims) {
-                        try {
-                          final sim = sims.firstWhere((s) => s.id == simId);
-                          label = sim.carrierName;
-                        } catch (_) {}
-                      });
-
-                      return DropdownMenuItem<String>(
-                        value: simId.toString(),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: state.simId ?? 'all',
+                    isDense: true,
+                    dropdownColor: theme.cardColor,
+                    icon: Icon(Icons.arrow_drop_down, color: theme.primaryColor),
+                    items: [
+                      DropdownMenuItem<String>(
+                        value: 'all',
                         child: Text(
-                          label,
+                          'All SIMs',
                           style: TextStyle(
                             color: theme.textTheme.bodyMedium?.color,
                           ),
                         ),
-                      );
-                    }),
-                  ],
-                  onChanged: (val) {
-                    ref.read(reportsProvider.notifier).updateSimFilter(val);
-                  },
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: theme.textTheme.bodyMedium?.color,
-                    fontWeight: FontWeight.w500,
+                      ),
+                      ...settings.simPriority.map((simId) {
+                        String label =
+                            'SIM ${settings.simPriority.indexOf(simId) + 1}';
+
+                        simsAsync.whenData((sims) {
+                          try {
+                            final sim = sims.firstWhere((s) => s.id == simId);
+                            label = sim.carrierName;
+                          } catch (_) {}
+                        });
+
+                        return DropdownMenuItem<String>(
+                          value: simId.toString(),
+                          child: Text(
+                            label,
+                            style: TextStyle(
+                              color: theme.textTheme.bodyMedium?.color,
+                            ),
+                          ),
+                        );
+                      }),
+                    ],
+                    onChanged: (val) {
+                      ref.read(reportsProvider.notifier).updateSimFilter(val);
+                    },
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: theme.textTheme.bodyMedium?.color,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   Widget _buildStatCards(Map<String, int> stats) {
     return Padding(
@@ -315,9 +242,9 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 16),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
+          color: color.withOpacity(0.1),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withValues(alpha: 0.3)),
+          border: Border.all(color: color.withOpacity(0.3)),
         ),
         child: Column(
           children: [
@@ -338,7 +265,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
 
   Widget _buildLogsTable(List<dynamic> logs) {
     final simsAsync = ref.watch(simsProvider);
-    
+
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: SingleChildScrollView(
@@ -348,15 +275,12 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
             DataColumn(label: Text('Date')),
             DataColumn(label: Text('Receiver')),
             DataColumn(label: Text('Message')),
-            DataColumn(label: Text('Channel')),
             DataColumn(label: Text('SIM')),
-            DataColumn(label: Text('Org')),
             DataColumn(label: Text('Status')),
           ],
           rows: logs.map((log) {
             final dateStr = log['createdAt']?.toString() ?? '';
-            // Ignore 'Z' suffix to show exact DB time without timezone conversion
-            final date = DateTime.parse(dateStr.replaceAll('Z', ''));
+            final date = DateTime.tryParse(dateStr.replaceAll('Z', '')) ?? DateTime.now();
 
             String simLabel = log['simId']?.toString() ?? '-';
             simsAsync.whenData((sims) {
@@ -365,8 +289,6 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                 simLabel = sim.carrierName;
               } catch (_) {}
             });
-            
-            final channel = log['channel']?.toString().toUpperCase() ?? 'SMS';
 
             return DataRow(
               cells: [
@@ -374,16 +296,14 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                 DataCell(Text(log['receiverNumber'] ?? '')),
                 DataCell(
                   Container(
-                    constraints: const BoxConstraints(maxWidth: 150),
+                    constraints: const BoxConstraints(maxWidth: 180),
                     child: Text(
                       log['message'] ?? '',
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ),
-                DataCell(Text(channel)),
                 DataCell(Text(simLabel)),
-                DataCell(Text(log['orgCode'] ?? '-')),
                 DataCell(
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -419,7 +339,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
+        color: color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(4),
       ),
       child: Text(
@@ -438,10 +358,10 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.notes, size: 64, color: Colors.grey.withValues(alpha: 0.5)),
+          Icon(Icons.notes, size: 64, color: Colors.grey.withOpacity(0.5)),
           const SizedBox(height: 16),
           const Text(
-            'No records found for the selected filters',
+            'No SMS records found for the selected filters',
             style: TextStyle(color: Colors.grey),
           ),
         ],

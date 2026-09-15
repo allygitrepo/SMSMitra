@@ -655,40 +655,4 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       ),
     );
   }
-
-  Widget _buildTipsCard() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.orange.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.orange.withOpacity(0.1)),
-      ),
-      child: const Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.lightbulb_outline, color: Colors.orange, size: 20),
-              SizedBox(width: 8),
-              Text(
-                'Helpful Tips',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.orange,
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: 12),
-          Text(
-            '• Ensure your selected SIM has an active SMS plan.\n'
-            '• Keep messages short to avoid carrier splits.\n'
-            '• Double-check the receiver\'s country code.',
-            style: TextStyle(fontSize: 13, height: 1.5),
-          ),
-        ],
-      ),
-    );
-  }
 }

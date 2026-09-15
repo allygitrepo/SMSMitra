@@ -82,7 +82,7 @@ exports.sendSmsTrigger = async (req, res) => {
         logId: log.id.toString(),
         phoneNumber: phoneNumber,
         message: message,
-        simId: selectedSim ? selectedSim.simId : '' // Tell phone which SIM to use
+        simId: selectedSim ? selectedSim.simId : ''
       },
       android: {
         priority: 'high'
@@ -184,20 +184,6 @@ exports.getDetailedReports = async (req, res) => {
       where.simId = simId;
     }
 
-    if (req.query.orgCode) {
-      if (req.query.orgCode === 'none') {
-        where.orgCode = null;
-      } else if (req.query.orgCode !== 'all') {
-        where.orgCode = req.query.orgCode;
-      }
-    }
-
-    if (req.query.channel) {
-      if (req.query.channel !== 'all') {
-        where.channel = req.query.channel;
-      }
-    }
-
     const logs = await SmsLog.findAll({
       where,
       order: [['createdAt', 'DESC']]
@@ -252,7 +238,6 @@ exports.updateSmsStatus = async (req, res) => {
     log.simId = simId;
     await log.save();
 
-    // If a TRIGGERED SMS failed, we should return the reserved quota
     if (status === 'failed' && simId) {
       const sim = await SimDetail.findOne({ where: { userId: log.userId, simId } });
       if (sim && sim.currentUsage > 0) {
@@ -272,8 +257,7 @@ exports.updateSmsStatus = async (req, res) => {
 
 exports.createManualLog = async (req, res) => {
   try {
-    const { userId, phoneNumber, message, simId, status, orgCode, channel, errorMessage } = req.body;
-    console.log('[LOGGING] Attempting to create log:', { userId, phoneNumber, channel, status, errorMessage });
+    const { userId, phoneNumber, message, simId, status, errorMessage } = req.body;
     
     const log = await SmsLog.create({
       userId: parseInt(userId) || userId,
@@ -281,15 +265,10 @@ exports.createManualLog = async (req, res) => {
       message,
       simId,
       status,
-      orgCode,
-      channel: channel || 'sms',
       errorMessage: errorMessage
     });
-    
-    console.log('[LOGGING] Success: Log created with ID', log.id);
 
-    // Increment usage on SIM for manual sends
-    if (status === 'sent' && simId && simId !== 'whatsapp') {
+    if (status === 'sent' && simId) {
       const sim = await SimDetail.findOne({ where: { userId, simId } });
       if (sim) {
         sim.currentUsage += 1;
@@ -303,9 +282,6 @@ exports.createManualLog = async (req, res) => {
     res.status(201).json(log);
   } catch (error) {
     console.error('[LOGGING] Error creating log:', error.message);
-    if (error.name === 'SequelizeDatabaseError') {
-      console.error('[LOGGING] Database Error Detail:', error.parent.sqlMessage);
-    }
     res.status(500).json({ message: error.message });
   }
 };

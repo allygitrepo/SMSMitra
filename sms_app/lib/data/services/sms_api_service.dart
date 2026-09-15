@@ -1,21 +1,17 @@
-import 'package:sms_app/core/utils/logger.dart';
-
 import '../models/sim_model.dart';
 import '../models/settings_model.dart';
-import '../models/organization_model.dart';
-import '../models/template_model.dart';
 import 'api_service.dart';
 import '../../core/constants/api_constants.dart';
-import 'package:dio/dio.dart';
 
 class SmsApiService {
   final ApiService _apiService = ApiService();
 
   /// Syncs SIM hardware details and limits to the server.
-  Future<void> syncSims(
-      {required String userId,
-      required List<SimModel> sims,
-      required SettingsModel settings}) async {
+  Future<void> syncSims({
+    required String userId,
+    required List<SimModel> sims,
+    required SettingsModel settings,
+  }) async {
     try {
       final List<Map<String, dynamic>> simData = sims
           .map((sim) => {
@@ -142,86 +138,5 @@ class SmsApiService {
       'stats': {'pending': 0, 'sent': 0, 'failed': 0},
       'logs': []
     };
-  }
-
-  // Organizations
-  Future<List<OrganizationModel>> getOrganizations(String userId) async {
-    try {
-      final response = await _apiService
-          .get(ApiConstants.organizations, queryParameters: {'userId': userId});
-      if (response.statusCode == 200) {
-        final List data = response.data['data'];
-        return data.map((e) => OrganizationModel.fromJson(e)).toList();
-      }
-    } catch (e) {
-      print('SmsApiService: Organizations Fetch Error: $e');
-    }
-    return [];
-  }
-
-  Future<void> createOrganization(Map<String, dynamic> data) async {
-    try {
-      logger.i('Creating organization: ${data['orgName']}');
-      final Map<String, dynamic> map = {
-        'userId': data['userId'],
-        'orgName': data['orgName'],
-        'email': data['email'],
-        'address': data['address'],
-      };
-
-      if (data['logoFile'] != null) {
-        map['logo'] = await MultipartFile.fromFile(data['logoFile'].path);
-      }
-
-      final formData = FormData.fromMap(map);
-      await _apiService.post(ApiConstants.organizations, data: formData);
-      logger.i('Organization created successfully');
-    } catch (e) {
-      logger.e('SmsApiService: Create Organization Error: $e');
-      rethrow;
-    }
-  }
-
-  // Templates
-  Future<List<SmsTemplateModel>> getTemplates(String userId) async {
-    try {
-      final response = await _apiService
-          .get(ApiConstants.templates, queryParameters: {'userId': userId});
-      if (response.statusCode == 200) {
-        final List data = response.data['data'];
-        return data.map((e) => SmsTemplateModel.fromJson(e)).toList();
-      }
-    } catch (e) {
-      logger.e('SmsApiService: Templates Fetch Error: $e');
-    }
-    return [];
-  }
-
-  Future<void> createTemplate(SmsTemplateModel template) async {
-    try {
-      logger.i('Creating template: ${template.templateName}');
-      await _apiService.post(ApiConstants.templates, data: template.toJson());
-      logger.i('Template created successfully');
-    } catch (e) {
-      logger.e('SmsApiService: Create Template Error: $e');
-      rethrow;
-    }
-  }
-
-  // File Parsing
-  Future<List<Map<String, dynamic>>> parseBulkFile(String filePath) async {
-    try {
-      final formData = FormData.fromMap({
-        'file': await MultipartFile.fromFile(filePath),
-      });
-      final response =
-          await _apiService.post(ApiConstants.parseFile, data: formData);
-      if (response.statusCode == 200) {
-        return List<Map<String, dynamic>>.from(response.data['data']);
-      }
-    } catch (e) {
-      print('SmsApiService: Parse File Error: $e');
-    }
-    return [];
   }
 }

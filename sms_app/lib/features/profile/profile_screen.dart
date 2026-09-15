@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sms_app/core/helpers/snackbar_helper.dart';
-import '../../data/services/storage_service.dart';
 import '../../data/services/auth_service.dart';
 import '../../data/providers/user_provider.dart';
+import '../../data/models/user_model.dart';
 import '../../core/routes/app_router.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
@@ -124,11 +123,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 children: [
                   const SizedBox(height: 24),
 
-                  // API Access Code Card
-                  _buildCodeCard(context, user?.deviceCode ?? '----'),
-
-                  const SizedBox(height: 20),
-
                   // Info / Edit Card
                   _buildInfoCard(user),
 
@@ -147,7 +141,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   // ── Header ─────────────────────────────────────────────────────────────────
 
-  Widget _buildHeader(BuildContext context, user) {
+  Widget _buildHeader(BuildContext context, UserModel? user) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
@@ -224,94 +218,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     return parts[0][0].toUpperCase();
   }
 
-  // ── API Code Card ──────────────────────────────────────────────────────────
-
-  Widget _buildCodeCard(BuildContext context, String code) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return GestureDetector(
-      onTap: () {
-        Clipboard.setData(ClipboardData(text: code));
-        MessageHelper.showSuccess(
-          context,
-          'Access Code $code copied to clipboard',
-        );
-        context.push(AppRouter.apiIntegration);
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [colorScheme.primary, colorScheme.primary.withOpacity(0.3)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: colorScheme.primary.withOpacity(0.1),
-              blurRadius: 14,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: Column(
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: const [
-                Icon(Icons.vpn_key_outlined, color: Colors.white70, size: 16),
-                SizedBox(width: 6),
-                Text(
-                  'API ACCESS CODE',
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
-                    letterSpacing: 1.4,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text(
-              code,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 38,
-                fontWeight: FontWeight.w900,
-                letterSpacing: 10,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.18),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.copy, color: Colors.white, size: 14),
-                  SizedBox(width: 6),
-                  Text(
-                    'Tap to copy & view integration guide',
-                    style: TextStyle(color: Colors.white, fontSize: 12),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   // ── Info / Edit Card ───────────────────────────────────────────────────────
 
-  Widget _buildInfoCard(user) {
+  Widget _buildInfoCard(UserModel? user) {
     return Container(
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
@@ -329,11 +238,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
-  Widget _buildViewFields(user) {
+  Widget _buildViewFields(UserModel? user) {
     final phone =
         (user?.phoneNumber == null || (user?.phoneNumber as String).isEmpty)
         ? 'Not set'
-        : user!.phoneNumber as String;
+        : user!.phoneNumber;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -522,18 +431,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       );
     }
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
+    return Material(
+      color: Theme.of(context).cardColor,
+      borderRadius: BorderRadius.circular(16),
+      elevation: 1,
+      shadowColor: Colors.black.withOpacity(0.05),
+      clipBehavior: Clip.antiAlias,
       child: ListTile(
         onTap: () => _handleLogout(context, ref),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
