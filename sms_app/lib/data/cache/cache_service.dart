@@ -93,15 +93,21 @@ class CacheService {
     ).get(CacheKeys.dashboardStats);
     if (cached == null) return null;
     if (cached.isExpired(expiry)) return null;
-    return Map<String, dynamic>.from(cached.data);
+    final data = cached.data;
+    if (data is Map) {
+      return Map<String, dynamic>.from(data);
+    }
+    return null;
   }
 
   Future<void> incrementSentStats() async {
     final box = Hive.box<CachedDataModel>(CacheBoxes.dashboard);
     final cached = box.get(CacheKeys.dashboardStats);
     if (cached != null) {
-      final data = Map<String, dynamic>.from(cached.data);
-      data['sentToday'] = (data['sentToday'] ?? 0) + 1;
+      final data = cached.data is Map
+          ? Map<String, dynamic>.from(cached.data as Map<dynamic, dynamic>)
+          : <String, dynamic>{};
+      data['sentToday'] = ((data['sentToday'] as num?)?.toInt() ?? 0) + 1;
       await box.put(
         CacheKeys.dashboardStats,
         CachedDataModel(data: data, timestamp: cached.timestamp),

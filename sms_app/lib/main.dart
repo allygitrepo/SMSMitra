@@ -39,25 +39,28 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   if (message.data['type'] == 'SEND_SMS') {
     final smsService = SmsService();
     final smsApi = SmsApiService();
-    final logId = message.data['logId'];
+    final logId = message.data['logId']?.toString() ?? '';
+    final phoneNumber = message.data['phoneNumber']?.toString() ?? '';
+    final smsBody = message.data['message']?.toString() ?? '';
+    final simId = message.data['simId']?.toString();
 
     try {
       await smsService.sendSms(
-        number: message.data['phoneNumber'],
-        message: message.data['message'],
-        simId: message.data['simId'], // Use the server-selected SIM
+        number: phoneNumber,
+        message: smsBody,
+        simId: simId, // Use the server-selected SIM
       );
 
       // Update status back to server
       await smsApi.updateSmsStatus(
         logId: logId,
         status: 'sent',
-        simId: message.data['simId'],
+        simId: simId,
       );
       await StorageService.addAppLog(
         "SMS Sent (Background)",
         details:
-            "To: ${message.data['phoneNumber']}, SIM: ${message.data['simId']}",
+            "To: $phoneNumber, SIM: $simId",
       );
       await CacheService().incrementSentStats();
     } catch (e) {
@@ -123,23 +126,26 @@ void main() async {
     if (message.data['type'] == 'SEND_SMS') {
       final smsService = SmsService();
       final smsApi = SmsApiService();
-      final logId = message.data['logId'];
+      final logId = message.data['logId']?.toString() ?? '';
+      final phoneNumber = message.data['phoneNumber']?.toString() ?? '';
+      final smsBody = message.data['message']?.toString() ?? '';
+      final simId = message.data['simId']?.toString();
 
       try {
         final success = await smsService.sendSms(
-          number: message.data['phoneNumber'],
-          message: message.data['message'],
-          simId: message.data['simId'],
+          number: phoneNumber,
+          message: smsBody,
+          simId: simId,
         );
         await smsApi.updateSmsStatus(
           logId: logId,
           status: success ? 'sent' : 'failed',
-          simId: message.data['simId'],
+          simId: simId,
         );
         await StorageService.addAppLog(
           "SMS Result (Foreground)",
           level: success ? 'info' : 'warning',
-          details: "Success: $success, To: ${message.data['phoneNumber']}",
+          details: "Success: $success, To: $phoneNumber",
         );
         if (success) await CacheService().incrementSentStats();
       } catch (e) {
@@ -170,8 +176,8 @@ void main() async {
   await StorageService.addAppLog("Application Started");
 
   // Request Notification Permissions for FCM triggers
-  FirebaseMessaging messaging = FirebaseMessaging.instance;
-  NotificationSettings settings = await messaging.requestPermission(
+  final FirebaseMessaging messaging = FirebaseMessaging.instance;
+  final NotificationSettings settings = await messaging.requestPermission(
     alert: true,
     badge: true,
     sound: true,

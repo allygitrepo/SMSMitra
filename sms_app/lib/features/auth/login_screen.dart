@@ -51,9 +51,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         if (!mounted) return;
         setState(() => _isLoading = false);
 
-        MessageHelper.showSuccess(context, result['message'] ?? 'Login successful');
+        MessageHelper.showSuccess(context, (result['message'] as String?) ?? 'Login successful');
 
-        final hasSims = result['hasSimDetails'] ?? false;
+        final bool hasSims = result['hasSimDetails'] == true;
         if (hasSims && StorageService.isSimConfigured()) {
           context.go(AppRouter.home);
         } else if (!hasSims) {

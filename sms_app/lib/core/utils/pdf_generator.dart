@@ -27,7 +27,7 @@ class PdfGenerator {
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
                   pw.Text('SMS Mitra Report',
-                      style: pw.TextStyle(
+                      style: const pw.TextStyle(
                           fontSize: 24, fontWeight: pw.FontWeight.bold)),
                   pw.Text(DateFormat('dd/MM/yyyy').format(DateTime.now())),
                 ],
@@ -69,7 +69,7 @@ class PdfGenerator {
                   log.status.toUpperCase(),
                 ];
               }).toList(),
-              headerStyle: pw.TextStyle(
+              headerStyle: const pw.TextStyle(
                   fontWeight: pw.FontWeight.bold, color: pdf.PdfColors.white),
               headerDecoration:
                   const pw.BoxDecoration(color: pdf.PdfColors.blueGrey800),

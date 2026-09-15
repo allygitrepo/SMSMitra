@@ -18,14 +18,14 @@ class SimService {
     debugPrint('SimService: Requesting phone permissions via permission_handler...');
     
     // As per documentation: Use permission_handler for better implementation
-    var status = await Permission.phone.status;
+    PermissionStatus status = await Permission.phone.status;
     if (!status.isGranted) {
       debugPrint('SimService: Requesting Permission.phone...');
       status = await Permission.phone.request();
     }
 
     // Also request SMS permission as it's often linked to number retrieval
-    var smsStatus = await Permission.sms.status;
+    final PermissionStatus smsStatus = await Permission.sms.status;
     if (!smsStatus.isGranted) {
       debugPrint('SimService: Requesting Permission.sms...');
       await Permission.sms.request();
@@ -42,7 +42,7 @@ class SimService {
     debugPrint('SimService: Fetching available SIM cards using custom MethodChannel...');
     try {
       const channel = MethodChannel('com.example.sms_app/sim_info');
-      final List<dynamic>? result = await channel.invokeMethod('getSimCards');
+      final List<dynamic>? result = await channel.invokeMethod<List<dynamic>>('getSimCards');
       
       debugPrint('SimService: Received ${result?.length ?? 0} SIMs from native.');
 
@@ -52,14 +52,16 @@ class SimService {
         return [];
       }
 
-      final mappedSims = result.map((item) {
-        final map = Map<String, dynamic>.from(item);
+      final mappedSims = result.map((dynamic item) {
+        final map = item is Map
+            ? Map<String, dynamic>.from(item)
+            : <String, dynamic>{};
         debugPrint('SimService: Mapping SIM - Slot: ${map['slotIndex']}, Carrier: ${map['carrierName']}');
         return SimModel(
           id: map['id']?.toString() ?? '0',
           carrierName: map['carrierName']?.toString() ?? 'Unknown Carrier',
           number: map['number']?.toString() ?? 'Unknown Number',
-          slotIndex: map['slotIndex'] as int? ?? 0,
+          slotIndex: (map['slotIndex'] as num?)?.toInt() ?? 0,
         );
       }).toList();
       

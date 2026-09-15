@@ -25,7 +25,7 @@ class SmsApiService {
               })
           .toList();
 
-      await _apiService.post(
+      await _apiService.post<dynamic>(
         ApiConstants.syncSims,
         data: {
           'userId': userId,
@@ -46,7 +46,7 @@ class SmsApiService {
     String? simId,
   }) async {
     try {
-      await _apiService.post(
+      await _apiService.post<dynamic>(
         ApiConstants.updateStatus,
         data: {
           'logId': logId,
@@ -70,7 +70,7 @@ class SmsApiService {
     String? errorMessage,
   }) async {
     try {
-      await _apiService.post(
+      await _apiService.post<dynamic>(
         ApiConstants.createLog,
         data: {
           'userId': userId,
@@ -89,17 +89,19 @@ class SmsApiService {
   /// Fetches daily statistics from the server.
   Future<Map<String, int>> getDailyStats(String userId) async {
     try {
-      final response = await _apiService.get(
+      final response = await _apiService.get<Map<String, dynamic>>(
         '${ApiConstants.getReports}/stats',
         queryParameters: {'userId': userId},
       );
 
-      if (response.statusCode == 200) {
-        final data = response.data['data'];
-        return {
-          'sentToday': data['sentToday'] ?? 0,
-          'failedToday': data['failedToday'] ?? 0,
-        };
+      if (response.statusCode == 200 && response.data != null) {
+        final data = response.data!['data'] as Map<String, dynamic>?;
+        if (data != null) {
+          return {
+            'sentToday': (data['sentToday'] as num?)?.toInt() ?? 0,
+            'failedToday': (data['failedToday'] as num?)?.toInt() ?? 0,
+          };
+        }
       }
     } catch (e) {
       logger.e('SmsApiService: Stats Fetch Error: $e');
@@ -126,21 +128,24 @@ class SmsApiService {
         if (channel != null && channel != 'all') 'channel': channel,
       };
 
-      final response = await _apiService.get(
+      final response = await _apiService.get<Map<String, dynamic>>(
         '${ApiConstants.getReports}/detailed',
         queryParameters: queryParams,
       );
 
-      if (response.statusCode == 200) {
-        return response.data['data'];
+      if (response.statusCode == 200 && response.data != null) {
+        final data = response.data!['data'];
+        if (data is Map<String, dynamic>) {
+          return data;
+        }
       }
     } catch (e) {
       logger.e('SmsApiService: Reports Fetch Error: $e');
       rethrow;
     }
-    return {
-      'stats': {'pending': 0, 'sent': 0, 'failed': 0},
-      'logs': []
+    return <String, dynamic>{
+      'stats': <String, dynamic>{'pending': 0, 'sent': 0, 'failed': 0},
+      'logs': <dynamic>[]
     };
   }
 }

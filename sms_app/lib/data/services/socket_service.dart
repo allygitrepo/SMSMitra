@@ -18,7 +18,7 @@ class SocketService {
     final user = StorageService.getUser();
     if (user == null) return;
 
-    String baseUrl = ApiConstants.baseUrl.replaceAll('/smsmitra/v1', '');
+    final String baseUrl = ApiConstants.baseUrl.replaceAll('/smsmitra/v1', '');
     
     socket = io.io(baseUrl, <String, dynamic>{
       'transports': ['websocket'],

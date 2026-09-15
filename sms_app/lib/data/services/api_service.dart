@@ -51,7 +51,7 @@ class ApiService {
         onError: (DioException error, handler) async {
           final isGet = error.requestOptions.method.toUpperCase() == 'GET';
           final shouldRetry = isGet && _isTransientError(error);
-          final currentRetry = error.requestOptions.extra['retryCount'] ?? 0;
+          final currentRetry = (error.requestOptions.extra['retryCount'] as num?)?.toInt() ?? 0;
 
           if (shouldRetry && currentRetry < 2) {
             final nextRetry = currentRetry + 1;
@@ -59,10 +59,10 @@ class ApiService {
             final delayMs = 500 * (1 << (nextRetry - 1)); // 500ms, 1000ms
 
             logger.i('ApiService: Retrying request ${error.requestOptions.path} (attempt $nextRetry/2 in ${delayMs}ms)...');
-            await Future.delayed(Duration(milliseconds: delayMs));
+            await Future<void>.delayed(Duration(milliseconds: delayMs));
 
             try {
-              final response = await _dio.fetch(error.requestOptions);
+              final response = await _dio.fetch<dynamic>(error.requestOptions);
               return handler.resolve(response);
             } on DioException catch (retryError) {
               return handler.next(retryError);
@@ -135,8 +135,9 @@ class ApiService {
 
   AppException _mapDioException(DioException error) {
     if (error.response?.statusCode == 401) {
-      final msg = error.response?.data is Map
-          ? error.response?.data['message'] ?? 'Unauthorized / Session Expired'
+      final data = error.response?.data;
+      final String msg = data is Map
+          ? (data['message']?.toString() ?? 'Unauthorized / Session Expired')
           : 'Unauthorized / Session Expired';
       return AuthException(msg);
     }

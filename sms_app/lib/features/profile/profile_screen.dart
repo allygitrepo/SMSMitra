@@ -62,7 +62,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         _isSaving = false;
         _isEditing = false;
       });
-      MessageHelper.showSuccess(context, result['message'] ?? 'Profile updated successfully');
+      MessageHelper.showSuccess(context, (result['message'] as String?) ?? 'Profile updated successfully');
     } catch (e) {
       if (!mounted) return;
       setState(() => _isSaving = false);
@@ -71,7 +71,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   void _handleLogout(BuildContext context, WidgetRef ref) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),

@@ -119,7 +119,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
               height: 4,
               margin: const EdgeInsets.only(bottom: 24),
               decoration: BoxDecoration(
-                color: Colors.grey.withOpacity(0.3),
+                color: Colors.grey.withValues(alpha: 0.3),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -215,7 +215,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
         if (didPop) return;
         final shouldPop = await _showExitBottomSheet();
         if (shouldPop && context.mounted) {
-          SystemNavigator.pop();
+          await SystemNavigator.pop();
         }
       },
       child: Scaffold(
@@ -297,9 +297,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.red.withOpacity(0.1),
+        color: Colors.red.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.red.withOpacity(0.3)),
+        border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
       ),
       child: const Row(
         children: [
@@ -346,9 +346,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
       width: isFullWidth ? double.infinity : null,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.05),
+        color: color.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withOpacity(0.1)),
+        border: Border.all(color: color.withValues(alpha: 0.1)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -367,7 +367,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
               borderRadius: BorderRadius.circular(4),
               child: LinearProgressIndicator(
                 value: _calculateProgress(value),
-                backgroundColor: color.withOpacity(0.1),
+                backgroundColor: color.withValues(alpha: 0.1),
                 valueColor: AlwaysStoppedAnimation<Color>(color),
                 minHeight: 4,
               ),

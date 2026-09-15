@@ -22,8 +22,8 @@ class SmsStatsNotifier extends StateNotifier<SmsStatsModel> {
     final cached = _cache.getCachedStats();
     if (cached != null) {
       state = SmsStatsModel(
-        sentToday: cached['sentToday'] ?? 0,
-        failedToday: cached['failedToday'] ?? 0,
+        sentToday: (cached['sentToday'] as num?)?.toInt() ?? 0,
+        failedToday: (cached['failedToday'] as num?)?.toInt() ?? 0,
       );
     }
   }

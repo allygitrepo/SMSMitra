@@ -11,7 +11,7 @@ class AuthService {
   /// Registers a new user on the server.
   Future<Map<String, dynamic>> register(UserModel user) async {
     try {
-      final response = await _apiService.post(
+      final response = await _apiService.post<Map<String, dynamic>>(
         ApiConstants.register,
         data: {
           'fullName': user.fullName,
@@ -21,28 +21,34 @@ class AuthService {
         },
       );
 
-      if (response.statusCode == 201) {
-        final data = response.data;
+      if (response.statusCode == 201 && response.data != null) {
+        final data = response.data!;
         final token = data['token'];
         if (token != null) {
           await StorageService.saveToken(token.toString());
         }
 
+        final userData = data['user'] as Map<String, dynamic>?;
+        final rawId = userData?['_id'] ?? userData?['id'];
+        final deviceCode = userData?['deviceCode']?.toString();
+
         final newUser = user.copyWith(
-          id: data['user']['_id'] ?? data['user']['id'],
-          deviceCode: data['user']['deviceCode'],
+          id: rawId is num ? rawId.toInt() : int.tryParse(rawId?.toString() ?? ''),
+          deviceCode: deviceCode,
         );
         await StorageService.saveUser(newUser);
         await StorageService.setLoggedIn(true);
 
         // Sync FCM Token for the newly registered device
-        await _updateFcmToken(data['user']['deviceCode']);
+        if (deviceCode != null) {
+          await _updateFcmToken(deviceCode);
+        }
 
         return {
           'success': true,
           'message': 'Registration successful',
-          'deviceCode': data['user']['deviceCode'],
-          'hasSimDetails': data['hasSimDetails'] ?? false,
+          'deviceCode': deviceCode,
+          'hasSimDetails': data['hasSimDetails'] == true,
         };
       }
       return {'success': false, 'message': 'Registration failed'};
@@ -57,28 +63,30 @@ class AuthService {
   /// Logs in a user via the server.
   Future<Map<String, dynamic>> login(String identity, String password) async {
     try {
-      final response = await _apiService.post(
+      final response = await _apiService.post<Map<String, dynamic>>(
         ApiConstants.login,
         data: {'email': identity, 'password': password},
       );
 
-      if (response.statusCode == 200) {
-        final data = response.data;
+      if (response.statusCode == 200 && response.data != null) {
+        final data = response.data!;
         final token = data['token'];
         if (token != null) {
           await StorageService.saveToken(token.toString());
         }
 
-        final userData = data['user'];
+        final userData = (data['user'] as Map<String, dynamic>?) ?? <String, dynamic>{};
+        final rawId = userData['_id'] ?? userData['id'];
+        final deviceCode = userData['deviceCode']?.toString();
 
         // Create or update local user model with server data
         final newUser = UserModel(
-          id: userData['_id'] ?? userData['id'],
-          fullName: userData['fullName'] ?? 'User',
-          email: userData['email'] ?? identity,
-          phoneNumber: userData['phoneNumber'] ?? '',
+          id: rawId is num ? rawId.toInt() : int.tryParse(rawId?.toString() ?? ''),
+          fullName: userData['fullName']?.toString() ?? 'User',
+          email: userData['email']?.toString() ?? identity,
+          phoneNumber: userData['phoneNumber']?.toString() ?? '',
           password: password, // Keep password for re-auth if needed
-          deviceCode: userData['deviceCode'],
+          deviceCode: deviceCode,
         );
 
         await StorageService.saveUser(newUser);
@@ -87,13 +95,15 @@ class AuthService {
         await StorageService.setLoggedIn(true);
         
         // Sync FCM Token
-        await _updateFcmToken(data['user']['deviceCode']);
+        if (deviceCode != null) {
+          await _updateFcmToken(deviceCode);
+        }
 
         return {
           'success': true, 
           'message': 'Login successful',
           'user': data['user'],
-          'hasSimDetails': data['hasSimDetails'] ?? false,
+          'hasSimDetails': data['hasSimDetails'] == true,
         };
       }
       return {'success': false, 'message': 'Invalid credentials'};
@@ -107,7 +117,7 @@ class AuthService {
     try {
       final fcmToken = await FirebaseMessaging.instance.getToken();
       if (fcmToken != null) {
-        await _apiService.post(
+        await _apiService.post<dynamic>(
           ApiConstants.updateToken,
           data: {
             'deviceCode': deviceCode,
@@ -126,7 +136,7 @@ class AuthService {
     required String phoneNumber,
   }) async {
     try {
-      final response = await _apiService.post(
+      final response = await _apiService.post<Map<String, dynamic>>(
         ApiConstants.updateProfile,
         data: {
           'userId': userId,
@@ -135,13 +145,13 @@ class AuthService {
         },
       );
 
-      if (response.statusCode == 200) {
-        final userData = response.data['user'];
+      if (response.statusCode == 200 && response.data != null) {
+        final userData = response.data!['user'] as Map<String, dynamic>?;
         final currentUser = StorageService.getUser();
-        if (currentUser != null) {
+        if (currentUser != null && userData != null) {
           final updatedUser = currentUser.copyWith(
-            fullName: userData['fullName'],
-            phoneNumber: userData['phoneNumber'],
+            fullName: userData['fullName']?.toString() ?? currentUser.fullName,
+            phoneNumber: userData['phoneNumber']?.toString() ?? currentUser.phoneNumber,
           );
           await StorageService.saveUser(updatedUser);
           return {'success': true, 'message': 'Profile updated successfully', 'user': updatedUser};

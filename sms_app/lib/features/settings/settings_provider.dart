@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/models/settings_model.dart';
@@ -55,13 +56,13 @@ class SettingsNotifier extends StateNotifier<SettingsModel> {
         );
         final allIds = sims.map((s) => s.id).toList();
         state = state.copyWith(simPriority: allIds, activeSimId: allIds.first);
-        StorageService.saveSettings(state);
+        unawaited(StorageService.saveSettings(state));
       } else if (sims.isNotEmpty &&
           state.activeSimId == null &&
           state.simPriority.isNotEmpty) {
         // If we have priority but no active SIM (shouldn't happen, but safety check)
         state = state.copyWith(activeSimId: state.simPriority.first);
-        StorageService.saveSettings(state);
+        unawaited(StorageService.saveSettings(state));
       }
 
       return sims;
@@ -73,7 +74,7 @@ class SettingsNotifier extends StateNotifier<SettingsModel> {
 
   /// Updates the active SIM ID and handles multi-SIM priority.
   void toggleSim(String id, bool selected) {
-    List<String> newPriority = List.from(state.simPriority);
+    final List<String> newPriority = List<String>.from(state.simPriority);
 
     if (selected) {
       if (!newPriority.contains(id)) {
@@ -141,9 +142,9 @@ class SettingsNotifier extends StateNotifier<SettingsModel> {
     }
 
     state = state.copyWith(themeMode: nextTheme);
-    StorageService.saveSettings(
+    unawaited(StorageService.saveSettings(
       state,
-    ); // Theme doesn't need server sync usually
+    )); // Theme doesn't need server sync usually
 
     // Update the global theme provider
     ref.read(themeModeProvider.notifier).state = nextMode;

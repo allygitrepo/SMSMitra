@@ -52,12 +52,14 @@ class SmsLogModel extends HiveObject {
 
   factory SmsLogModel.fromJson(Map<String, dynamic> json) => SmsLogModel(
     id: json['id']?.toString(),
-    receiverNumber: json['receiverNumber'] ?? '',
-    message: json['message'] ?? '',
-    status: json['status'] ?? 'pending',
+    receiverNumber: json['receiverNumber']?.toString() ?? '',
+    message: json['message']?.toString() ?? '',
+    status: json['status']?.toString() ?? 'pending',
     simId: json['simId']?.toString(),
-    createdAt: DateTime.parse(json['createdAt'] ?? DateTime.now().toIso8601String()),
-    errorMessage: json['errorMessage'],
+    createdAt: json['createdAt'] != null
+        ? (DateTime.tryParse(json['createdAt'].toString()) ?? DateTime.now())
+        : DateTime.now(),
+    errorMessage: json['errorMessage']?.toString(),
     orgCode: json['orgCode']?.toString(),
   );
 }

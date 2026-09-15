@@ -7,7 +7,7 @@ import 'storage_service.dart';
 class SmsService {
   /// Requests permissions for SMS operations.
   Future<bool> requestPermissions() async {
-    Map<Permission, PermissionStatus> statuses = await [
+    final Map<Permission, PermissionStatus> statuses = await [
       Permission.sms,
       Permission.phone,
     ].request();
@@ -27,8 +27,8 @@ class SmsService {
       
       if (!skipQuotaCheck) {
         // Enforce Quota Check
-        final stats = CacheService().getDashboardStats() ?? {};
-        final sentToday = stats['sentToday'] ?? 0;
+        final stats = CacheService().getDashboardStats() ?? <String, dynamic>{};
+        final int sentToday = (stats['sentToday'] as num?)?.toInt() ?? 0;
         final dailyLimit = settings.dailySmsLimit;
 
         if (dailyLimit != -1 && sentToday >= dailyLimit) {
@@ -43,13 +43,13 @@ class SmsService {
       final subId = int.tryParse(subIdStr ?? '');
 
       const channel = MethodChannel('com.example.sms_app/sim_info');
-      final bool success = await channel.invokeMethod('sendSms', {
+      final bool? success = await channel.invokeMethod<bool>('sendSms', <String, dynamic>{
         'number': number,
         'message': message,
         'subscriptionId': subId,
       });
 
-      return success;
+      return success ?? false;
     } catch (e) {
       if (e is Exception) rethrow;
       return false;

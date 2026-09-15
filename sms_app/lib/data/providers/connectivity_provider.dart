@@ -17,7 +17,7 @@ class ConnectivityNotifier extends StateNotifier<ConnectivityStatus> {
   Future<void> _checkConnectivity() async {
     try {
       final dio = Dio();
-      await dio.get(
+      await dio.get<void>(
         'https://google.com',
         options: Options(receiveTimeout: const Duration(seconds: 3)),
       );

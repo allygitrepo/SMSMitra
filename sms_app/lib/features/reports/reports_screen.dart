@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:sms_app/features/home/stats_provider.dart';
 import '../../core/utils/pdf_generator.dart';
 import '../../data/models/sms_log_model.dart';
+import '../../data/models/settings_model.dart';
 import '../../features/reports/reports_provider.dart';
 import '../../features/settings/settings_provider.dart';
 import '../../data/services/socket_service.dart';
@@ -120,7 +121,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with WidgetsBindi
   Widget _buildFilterBar(
     BuildContext context,
     ReportsState state,
-    dynamic settings,
+    SettingsModel settings,
   ) {
     final theme = Theme.of(context);
     final simsAsync = ref.watch(simsProvider);
@@ -209,7 +210,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with WidgetsBindi
                     isDense: true,
                     dropdownColor: theme.cardColor,
                     icon: Icon(Icons.arrow_drop_down, color: theme.primaryColor),
-                    items: [
+                    items: <DropdownMenuItem<String>>[
                       DropdownMenuItem<String>(
                         value: 'all',
                         child: Text(
@@ -219,7 +220,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with WidgetsBindi
                           ),
                         ),
                       ),
-                      ...settings.simPriority.map((simId) {
+                      ...settings.simPriority.map<DropdownMenuItem<String>>((String simId) {
                         String label =
                             'SIM ${settings.simPriority.indexOf(simId) + 1}';
 
@@ -231,7 +232,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with WidgetsBindi
                         });
 
                         return DropdownMenuItem<String>(
-                          value: simId.toString(),
+                          value: simId,
                           child: Text(
                             label,
                             style: TextStyle(
@@ -279,9 +280,9 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with WidgetsBindi
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 16),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
+          color: color.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withOpacity(0.3)),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
         ),
         child: Column(
           children: [
@@ -373,7 +374,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with WidgetsBindi
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(4),
       ),
       child: Text(
@@ -392,7 +393,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with WidgetsBindi
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.notes, size: 64, color: Colors.grey.withOpacity(0.5)),
+          Icon(Icons.notes, size: 64, color: Colors.grey.withValues(alpha: 0.5)),
           const SizedBox(height: 16),
           const Text(
             'No SMS records found for the selected filters',

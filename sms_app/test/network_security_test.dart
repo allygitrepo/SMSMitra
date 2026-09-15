@@ -25,7 +25,7 @@ void main() {
       await StorageService.notifySessionExpired();
 
       // Small delay to allow microtask broadcast
-      await Future.delayed(const Duration(milliseconds: 20));
+      await Future<void>.delayed(const Duration(milliseconds: 20));
 
       expect(sessionExpiredFired, isTrue);
       expect(StorageService.getToken(), isNull);

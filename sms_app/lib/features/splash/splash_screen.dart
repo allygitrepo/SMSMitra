@@ -167,7 +167,7 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   Future<void> _navigateToNext() async {
-    await Future.delayed(const Duration(seconds: 3));
+    await Future<void>.delayed(const Duration(seconds: 3));
     if (!mounted) return;
 
     final isRegistered = StorageService.isUserRegistered();

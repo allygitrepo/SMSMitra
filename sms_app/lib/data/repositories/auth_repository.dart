@@ -27,7 +27,7 @@ class AuthRepository {
       _ref.read(userProvider.notifier).refresh();
       return result;
     } else {
-      throw AuthException(result['message'] ?? 'Login failed. Please check your credentials.');
+      throw AuthException((result['message'] as String?) ?? 'Login failed. Please check your credentials.');
     }
   }
 
@@ -38,7 +38,7 @@ class AuthRepository {
       _ref.read(userProvider.notifier).refresh();
       return result;
     } else {
-      throw AuthException(result['message'] ?? 'Registration failed.');
+      throw AuthException((result['message'] as String?) ?? 'Registration failed.');
     }
   }
 
@@ -60,7 +60,7 @@ class AuthRepository {
       _ref.read(userProvider.notifier).refresh();
       return result;
     } else {
-      throw NetworkException(result['message'] ?? 'Profile update failed.');
+      throw NetworkException((result['message'] as String?) ?? 'Profile update failed.');
     }
   }
 

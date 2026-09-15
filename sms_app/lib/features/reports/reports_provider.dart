@@ -68,13 +68,17 @@ class ReportsNotifier extends StateNotifier<ReportsState> {
         simId: state.simId,
       );
 
-      final rawLogs = data['logs'] as List<dynamic>? ?? [];
+      final rawLogs = (data['logs'] as List<dynamic>?) ?? <dynamic>[];
       final parsedLogs = rawLogs
-          .map((item) => SmsLogModel.fromJson(Map<String, dynamic>.from(item)))
+          .map((dynamic item) => SmsLogModel.fromJson(item as Map<String, dynamic>))
           .toList();
 
+      final rawStats = (data['stats'] as Map<String, dynamic>?) ??
+          <String, dynamic>{'pending': 0, 'sent': 0, 'failed': 0};
+      final parsedStats = rawStats.map((k, v) => MapEntry(k, (v as num?)?.toInt() ?? 0));
+
       state = state.copyWith(
-        stats: Map<String, int>.from(data['stats'] ?? {'pending': 0, 'sent': 0, 'failed': 0}),
+        stats: parsedStats,
         logs: parsedLogs,
         isLoading: false,
       );

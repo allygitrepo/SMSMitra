@@ -463,15 +463,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with WidgetsBin
   Widget _buildPriorityList(SettingsModel settings, SettingsNotifier notifier) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.orange.withOpacity(0.05),
+        color: Colors.orange.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.orange.withOpacity(0.1)),
+        border: Border.all(color: Colors.orange.withValues(alpha: 0.1)),
       ),
       child: ReorderableListView(
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
-        onReorder: (oldIndex, newIndex) {
-          if (newIndex > oldIndex) newIndex -= 1;
+        onReorderItem: (oldIndex, newIndex) {
           final items = List<String>.from(settings.simPriority);
           final item = items.removeAt(oldIndex);
           items.insert(newIndex, item);
@@ -510,7 +509,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with WidgetsBin
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.red.withOpacity(0.1),
+        color: Colors.red.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -559,9 +558,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with WidgetsBin
               onFix: () async {
                 final status = await Permission.sms.request();
                 if (status.isPermanentlyDenied) {
-                  openAppSettings();
+                  await openAppSettings();
                 }
-                _checkPermissionsStatus();
+                await _checkPermissionsStatus();
               },
             ),
             const Divider(height: 24),
@@ -574,9 +573,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with WidgetsBin
               onFix: () async {
                 final status = await Permission.phone.request();
                 if (status.isPermanentlyDenied) {
-                  openAppSettings();
+                  await openAppSettings();
                 }
-                _checkPermissionsStatus();
+                await _checkPermissionsStatus();
               },
             ),
             const Divider(height: 24),
@@ -590,9 +589,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with WidgetsBin
               onFix: () async {
                 final status = await Permission.ignoreBatteryOptimizations.request();
                 if (status.isPermanentlyDenied) {
-                  openAppSettings();
+                  await openAppSettings();
                 }
-                _checkPermissionsStatus();
+                await _checkPermissionsStatus();
               },
             ),
             
@@ -600,9 +599,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with WidgetsBin
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: Colors.orange.withOpacity(0.05),
+                color: Colors.orange.withValues(alpha: 0.05),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.orange.withOpacity(0.1)),
+                border: Border.all(color: Colors.orange.withValues(alpha: 0.1)),
               ),
               child: const Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -641,9 +640,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with WidgetsBin
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: Colors.blue.withOpacity(0.05),
+                color: Colors.blue.withValues(alpha: 0.05),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.blue.withOpacity(0.1)),
+                border: Border.all(color: Colors.blue.withValues(alpha: 0.1)),
               ),
               child: const Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

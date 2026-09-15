@@ -21,7 +21,7 @@ class SettingsModel extends HiveObject {
   @HiveField(4, defaultValue: 'day')
   final String limitPeriod; // 'day', 'month'
 
-  @HiveField(5, defaultValue: [])
+  @HiveField(5, defaultValue: <String>[])
   final List<String> simPriority; // List of SIM IDs in priority order
 
   SettingsModel({
@@ -30,7 +30,7 @@ class SettingsModel extends HiveObject {
     this.themeMode = 'system',
     this.isLoggedIn = false,
     this.limitPeriod = 'day',
-    this.simPriority = const [],
+    this.simPriority = const <String>[],
   });
 
   /// Creates a copy of the settings with modified fields.
