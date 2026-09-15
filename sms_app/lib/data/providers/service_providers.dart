@@ -5,6 +5,7 @@ import '../services/sim_service.dart';
 import '../services/sms_api_service.dart';
 import '../services/sms_service.dart';
 import '../services/socket_service.dart';
+import '../services/scheduled_sms_service.dart';
 import '../cache/cache_service.dart';
 
 /// Provider for the central Dio-based API client.
@@ -40,4 +41,9 @@ final cacheServiceProvider = Provider<CacheService>((ref) {
 /// Provider for WebSocket live updates.
 final socketServiceProvider = Provider<SocketService>((ref) {
   return SocketService();
+});
+
+/// Provider for scheduled SMS API service.
+final scheduledSmsServiceProvider = Provider<ScheduledSmsService>((ref) {
+  return ScheduledSmsService(apiService: ref.watch(apiServiceProvider));
 });

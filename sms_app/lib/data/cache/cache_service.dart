@@ -55,6 +55,9 @@ class CacheService {
   }
 
   UserModel? getUser() {
+    if (!Hive.isBoxOpen(CacheBoxes.user)) {
+      return null;
+    }
     return Hive.box<UserModel>(CacheBoxes.user).get(CacheKeys.currentUser);
   }
 

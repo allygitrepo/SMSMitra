@@ -125,6 +125,10 @@ class ApiService {
     return _execute(() => _dio.post<T>(endpoint, data: data, queryParameters: queryParameters));
   }
 
+  Future<Response<T>> put<T>(String endpoint, {dynamic data, Map<String, dynamic>? queryParameters}) {
+    return _execute(() => _dio.put<T>(endpoint, data: data, queryParameters: queryParameters));
+  }
+
   Future<Response<T>> patch<T>(String endpoint, {dynamic data}) {
     return _execute(() => _dio.patch<T>(endpoint, data: data));
   }

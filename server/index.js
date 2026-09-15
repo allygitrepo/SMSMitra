@@ -7,6 +7,7 @@ require('dotenv').config();
 
 const { connectDB, sequelize } = require('./config/db');
 const routes = require('./routes/index');
+const { startScheduler } = require('./utils/scheduler');
 
 const app = express();
 const server = http.createServer(app);
@@ -41,7 +42,7 @@ app.use((err, req, res, next) => {
   res.status(500).send({ message: 'Something went wrong!' });
 });
 
-const PORT = process.env.PORT;
+const PORT = process.env.PORT || 5000;
 
 const startServer = async () => {
   await connectDB();
@@ -49,6 +50,9 @@ const startServer = async () => {
   // Sync Database
   await sequelize.sync({ alter: true });
   console.log('Database synced with schema updates.');
+
+  // Start the background SMS Scheduler worker
+  startScheduler(io, 20000);
 
   server.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);

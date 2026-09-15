@@ -10,6 +10,7 @@ import '../../shared/widgets/gradient_button.dart';
 import '../../shared/widgets/stat_card.dart';
 import '../../shared/widgets/confirm_bottom_sheet.dart';
 import '../settings/settings_provider.dart';
+import '../schedules/widgets/schedule_sms_sheet.dart';
 import 'stats_provider.dart';
 import 'sms_controller.dart';
 import '../../data/services/socket_service.dart';
@@ -217,7 +218,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                   isFullWidth: true,
                 ),
                 const SizedBox(height: 28),
-                _buildSectionHeader('Quick Send SMS'),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _buildSectionHeader('Quick Send SMS'),
+                    TextButton.icon(
+                      onPressed: () => ScheduleSmsSheet.show(context),
+                      icon: const Icon(Icons.schedule, size: 18, color: Colors.orange),
+                      label: const Text(
+                        'Schedule',
+                        style: TextStyle(
+                          color: Colors.orange,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 12),
                 _buildQuickSendForm(),
                 const SizedBox(height: 32),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'home/home_screen.dart';
+import 'schedules/schedules_screen.dart';
 import 'reports/reports_screen.dart';
 import 'settings/settings_screen.dart';
 import 'profile/profile_screen.dart';
@@ -18,6 +19,7 @@ class _MainNavigationState extends State<MainNavigation> {
   Widget build(BuildContext context) {
     final pages = [
       const HomeScreen(),
+      const SchedulesScreen(),
       const ReportsScreen(),
       const SettingsScreen(), // isFirstTime defaults to false
       const ProfileScreen(),
@@ -40,6 +42,11 @@ class _MainNavigationState extends State<MainNavigation> {
             icon: Icon(Icons.dashboard_outlined),
             activeIcon: Icon(Icons.dashboard),
             label: 'Home',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.schedule_outlined),
+            activeIcon: Icon(Icons.schedule),
+            label: 'Schedules',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.assessment_outlined),

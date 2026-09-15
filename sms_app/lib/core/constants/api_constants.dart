@@ -13,4 +13,7 @@ class ApiConstants {
   static const String updateStatus = '/sms/update-status';
   static const String createLog = '/sms/log';
   static const String getReports = '/sms/reports';
+
+  // Schedule Endpoints
+  static const String schedules = '/schedules';
 }
