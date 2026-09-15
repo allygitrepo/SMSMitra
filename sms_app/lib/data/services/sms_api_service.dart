@@ -1,7 +1,9 @@
 import '../models/sim_model.dart';
 import '../models/settings_model.dart';
 import 'api_service.dart';
+import 'storage_service.dart';
 import '../../core/constants/api_constants.dart';
+import '../../core/utils/logger.dart';
 
 class SmsApiService {
   final ApiService _apiService = ApiService();
@@ -31,7 +33,8 @@ class SmsApiService {
         },
       );
     } catch (e) {
-      print('SmsApiService: Sync Error: $e');
+      logger.e('SmsApiService: Sync Error: $e');
+      await StorageService.addAppLog('SIM Sync Error: $e', level: 'error');
     }
   }
 
@@ -53,7 +56,7 @@ class SmsApiService {
         },
       );
     } catch (e) {
-      print('SmsApiService: Status Update Error: $e');
+      logger.e('SmsApiService: Status Update Error: $e');
     }
   }
 
@@ -79,7 +82,7 @@ class SmsApiService {
         },
       );
     } catch (e) {
-      // Ignore background log sync failure
+      logger.w('SmsApiService: Manual Log Sync Error (skipped): $e');
     }
   }
 
@@ -99,7 +102,7 @@ class SmsApiService {
         };
       }
     } catch (e) {
-      print('SmsApiService: Stats Fetch Error: $e');
+      logger.e('SmsApiService: Stats Fetch Error: $e');
     }
     return {'sentToday': 0, 'failedToday': 0};
   }
@@ -132,7 +135,8 @@ class SmsApiService {
         return response.data['data'];
       }
     } catch (e) {
-      print('SmsApiService: Reports Fetch Error: $e');
+      logger.e('SmsApiService: Reports Fetch Error: $e');
+      rethrow;
     }
     return {
       'stats': {'pending': 0, 'sent': 0, 'failed': 0},

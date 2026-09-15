@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -6,6 +7,7 @@ import 'package:sms_app/data/cache/cache_service.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_provider.dart';
 import 'core/routes/app_router.dart';
+import 'core/utils/logger.dart';
 import 'data/services/storage_service.dart';
 import 'data/services/sms_service.dart';
 import 'data/services/sms_api_service.dart';
@@ -74,6 +76,28 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Global Flutter framework error handling
+  FlutterError.onError = (FlutterErrorDetails details) {
+    FlutterError.presentError(details);
+    logger.e("FlutterError caught", error: details.exception, stackTrace: details.stack);
+    StorageService.addAppLog(
+      "FlutterError Caught",
+      level: 'error',
+      details: details.exceptionAsString(),
+    );
+  };
+
+  // Global PlatformDispatcher unhandled asynchronous error handling
+  PlatformDispatcher.instance.onError = (error, stack) {
+    logger.e("PlatformDispatcher caught unhandled error", error: error, stackTrace: stack);
+    StorageService.addAppLog(
+      "Unhandled Async Error",
+      level: 'error',
+      details: error.toString(),
+    );
+    return true;
+  };
 
   // Initialize Firebase
   await Firebase.initializeApp(

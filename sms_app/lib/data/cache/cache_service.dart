@@ -17,17 +17,24 @@ class CacheService {
     await Hive.initFlutter();
 
     // Register All Adapters
-    if (!Hive.isAdapterRegistered(0)) Hive.registerAdapter(UserModelAdapter());
-    if (!Hive.isAdapterRegistered(1))
+    if (!Hive.isAdapterRegistered(0)) {
+      Hive.registerAdapter(UserModelAdapter());
+    }
+    if (!Hive.isAdapterRegistered(1)) {
       Hive.registerAdapter(SettingsModelAdapter());
-    if (!Hive.isAdapterRegistered(2))
+    }
+    if (!Hive.isAdapterRegistered(2)) {
       Hive.registerAdapter(SmsLogModelAdapter());
-    if (!Hive.isAdapterRegistered(3))
+    }
+    if (!Hive.isAdapterRegistered(3)) {
       Hive.registerAdapter(QueueRequestModelAdapter());
-    if (!Hive.isAdapterRegistered(4))
+    }
+    if (!Hive.isAdapterRegistered(4)) {
       Hive.registerAdapter(CachedDataModelAdapter());
-    if (!Hive.isAdapterRegistered(5))
+    }
+    if (!Hive.isAdapterRegistered(5)) {
       Hive.registerAdapter(AppLogModelAdapter());
+    }
 
     // Open All Boxes
     await Future.wait([

@@ -1,18 +1,27 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import '../../core/errors/app_exceptions.dart';
+import '../../core/utils/logger.dart';
 
 class ErrorHandler {
   /// Convert technical errors to user-friendly messages
   static String getUserFriendlyMessage(dynamic error) {
+    if (error == null) {
+      return 'An unknown error occurred.';
+    }
     if (error is String) {
       return error;
+    }
+    if (error is AppException) {
+      return error.message;
     }
     if (error is DioException) {
       return _handleDioError(error);
     } else if (error is Exception) {
       return _handleGenericException(error);
     } else {
-      return 'Something went wrong. Please try again.';
+      return error.toString();
     }
   }
 
@@ -31,7 +40,7 @@ class ErrorHandler {
         // Try to get the error message from the response body first
         final responseData = error.response?.data;
         if (responseData is Map && responseData['message'] != null) {
-          return responseData['message'];
+          return responseData['message'].toString();
         }
         return _handleHttpStatusError(error.response?.statusCode);
 
@@ -83,23 +92,16 @@ class ErrorHandler {
     } else if (message.contains('TimeoutException')) {
       return 'Request timeout. Please try again.';
     } else {
-      return 'Something went wrong. Please try again.';
+      return message.replaceFirst(RegExp(r'^Exception:\s*'), '');
     }
   }
 
   /// Show user-friendly error message in a SnackBar
   static void showErrorSnackBar(BuildContext context, dynamic error) {
-    // Log the error to console for debugging
-    debugPrint('---------------- ERROR LOG ----------------');
-    debugPrint('Error Type: ${error.runtimeType}');
-    debugPrint('Error Details: $error');
-    if (error is DioException) {
-      debugPrint('Dio Error Type: ${error.type}');
-      debugPrint('Dio Response: ${error.response}');
-    }
-    debugPrint('-------------------------------------------');
-    
+    HapticFeedback.lightImpact();
     final message = getUserFriendlyMessage(error);
+    logger.e('ErrorHandler: $message', error: error);
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
@@ -119,7 +121,7 @@ class ErrorHandler {
         ),
         backgroundColor: Colors.red.shade800,
         behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 2),
+        duration: const Duration(seconds: 3),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
         ),
@@ -196,6 +198,7 @@ class ErrorHandler {
 
   /// Check if error indicates network connectivity issues
   static bool isNetworkError(dynamic error) {
+    if (error is NetworkException) return true;
     if (error is DioException) {
       return error.type == DioExceptionType.connectionTimeout ||
           error.type == DioExceptionType.connectionError ||
@@ -211,6 +214,7 @@ class ErrorHandler {
 
   /// Check if error indicates authentication issues
   static bool isAuthError(dynamic error) {
+    if (error is AuthException) return true;
     if (error is DioException && error.response?.statusCode == 401) {
       return true;
     }
