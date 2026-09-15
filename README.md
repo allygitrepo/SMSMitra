@@ -16,14 +16,15 @@
 
 1. [Architecture Overview](#-architecture-overview)
 2. [Key Features](#-key-features)
-3. [Project Structure](#-project-structure)
-4. [Prerequisites](#-prerequisites)
-5. [Backend Server Setup](#-backend-server-setup)
-6. [Flutter Client App Setup](#-flutter-client-app-setup)
-7. [Android Device & Permissions Guide](#-android-device--permissions-guide)
-8. [Testing & Code Quality](#-testing--code-quality)
-9. [API & Dispatch Endpoints](#-api--dispatch-endpoints)
-10. [Troubleshooting & FAQs](#-troubleshooting--faqs)
+3. [Scheduled SMS & Timeline Dispatch Engine](#-scheduled-sms--timeline-dispatch-engine)
+4. [Project Structure](#-project-structure)
+5. [Prerequisites](#-prerequisites)
+6. [Backend Server Setup](#-backend-server-setup)
+7. [Flutter Client App Setup](#-flutter-client-app-setup)
+8. [Android Device & Permissions Guide](#-android-device--permissions-guide)
+9. [Testing & Code Quality](#-testing--code-quality)
+10. [API & Dispatch Endpoints](#-api--dispatch-endpoints)
+11. [Troubleshooting & FAQs](#-troubleshooting--faqs)
 
 ---
 
@@ -33,9 +34,11 @@ The system operates via a decoupled client-server architecture:
 
 ```mermaid
 graph TD
-    Client[Web/Admin App / Backend APIs] -->|POST /api/sms/send| Server[SMS Mitra Node.js Server]
-    Server -->|Store SMS Log & Status| DB[(MySQL Database)]
-    Server -->|FCM Data Push / WebSocket| FlutterApp[SMS Mitra Android Gateway App]
+    Client[Web/Admin App / Backend APIs] -->|POST /api/sms/send or /schedules| Server[SMS Mitra Node.js Server]
+    Server -->|Store SMS Log & Schedules| DB[(MySQL Database)]
+    Server -->|Cron Scheduler Daemon (20s)| Scheduler[Background Dispatcher]
+    Scheduler -->|FCM High-Priority Push| FlutterApp[SMS Mitra Android Gateway App]
+    Server -->|WebSocket Real-time Broadcast| FlutterApp
     
     subgraph Android Device Hardware
         FlutterApp -->|MethodChannel| NativeTelephony[Android SmsManager]
@@ -45,25 +48,50 @@ graph TD
     Carrier -->|SMS Delivery Receipt| NativeTelephony
     NativeTelephony -->|Status Callback| FlutterApp
     FlutterApp -->|POST /api/sms/update-status| Server
-    Server -->|Broadcast Update| Client
+    Server -->|Broadcast Status Update| Client
 ```
 
-1. **Cloud API Dispatch**: Your applications trigger SMS requests through the SMS Mitra REST API.
-2. **Instant Push**: The server dispatches the job to the dedicated Android device via high-priority Firebase Cloud Messaging (FCM) or real-time WebSockets.
-3. **Native Carrier Dispatch**: The Flutter application invokes native Android `SmsManager` across multi-SIM hardware slots with slot priority routing.
-4. **Real-time Reconciliation**: Delivery statuses (`sent`, `failed`, `pending`) and error logs are synced back to the server and cached locally in Hive.
+1. **Cloud API & Schedule Dispatch**: Trigger instant SMS dispatches or schedule future outbound campaigns with recipient, custom gateway SIM, and precise dispatch timestamps.
+2. **Automated Scheduler Daemon**: High-reliability background cron running every 20 seconds with atomic status locking (`pending` $\rightarrow$ `processing` $\rightarrow$ `completed`), automatic SIM routing, and FCM push wakeup.
+3. **Native Multi-SIM Carrier Dispatch**: Flutter application invokes native Android `SmsManager` across dual-SIM hardware slots with slot priority routing.
+4. **Real-Time Reconciliation & Timeline**: Live delivery receipts and schedule status changes sync via WebSockets and are displayed in an interactive timeline with optimistic updates.
 
 ---
 
 ## ✨ Key Features
 
-- 📶 **Multi-SIM Support & Dynamic Priority**: Auto-detects all available SIM cards, carrier names, and slot IDs. Reorder SIM priority dynamically with drag-and-drop.
+- ⏰ **Scheduled SMS & Timeline Engine**: Schedule outbound SMS messages for any future date & time with auto-priority SIM routing, full editing, and instant cancellation.
+- 📅 **Google Calendar Style Agenda View**: Date-grouped timeline with intuitive day headers (*Today*, *Tomorrow*, *Calendar Dates*), active SIM carrier badges, and live per-second countdown badges (`59s -> 58s -> 57s`).
+- 💥 **Realistic 12-Shard Glass Shatter Animations**:
+  - **Cancel Shatter**: Card breaks into 12 polygon glass shards with realistic trajectory physics, angular spin, gravity arcs, and glowing 🔴 **Crimson Red fracture lines**.
+  - **Dispatch Shatter**: When an SMS reaches dispatch time or gets processed, it shatters with glowing 🟢 **Emerald Green fracture lines** before smoothly collapsing vertical space (`SizeTransition`).
+  - **Persistent Optimistic State**: Departed cards never pop back onto the *Upcoming* tab, even during background polling syncs.
+- 📐 **Compact Summary Statistics**: Space-optimized top stat cards (*Upcoming*, *Completed*, *Cancelled*) with smooth number transitions (`AnimatedSwitcher`).
+- 📶 **Multi-SIM Support & Dynamic Priority**: Auto-detects physical SIM cards, carrier names, and slot IDs with drag-and-drop priority reordering.
 - ⚡ **Dual Dispatch Channels**: High-priority Firebase Cloud Messaging (FCM) for background wakeup + low-latency WebSockets for instant foreground sync.
-- 📊 **Strict Quota & Limit Enforcement**: Configure per-SIM daily or monthly dispatch limits (e.g. 100/day or unlimited) with real-time UI warning badges and automated overflow prevention.
-- 📑 **PDF Export & Detailed Analytics**: Filter SMS history by date range, SIM carrier, or status, and generate formatted PDF reports ready for export or printing.
-- 🛡 **Robust Error Handling & Auto-Retry**: Built with typed domain exceptions (`AppException`, `NetworkException`, `AuthException`, `QuotaException`), transient error retry interceptor with exponential backoff, and sanitized token logging.
+- 📊 **Strict Quota & Limit Enforcement**: Configure per-SIM daily or monthly dispatch limits (e.g. 100/day or unlimited) with real-time UI warning badges.
+- 📑 **PDF Export & Detailed Analytics**: Filter SMS history by date range, SIM carrier, or status, and generate formatted PDF reports ready for export.
+- 🛡 **Robust Error Handling & Auto-Retry**: Typed domain exceptions, transient error retry interceptor with exponential backoff, and sanitized token logging.
 - 📴 **Offline-First Resilience**: Local caching via Hive and encrypted credential storage via `flutter_secure_storage`.
-- 🔋 **Background Execution Reliability**: Built-in system battery optimization bypass and Google Play Protect guidance to ensure uninterrupted message processing.
+- 🔋 **Background Execution Reliability**: Built-in system battery optimization bypass and Google Play Protect guidance.
+
+---
+
+## ⏰ Scheduled SMS & Timeline Dispatch Engine
+
+The scheduling module provides an end-to-end client-server infrastructure for precision outbound SMS delivery:
+
+### 1. Server-Side Scheduler Daemon (`server/utils/scheduler.js`)
+- Runs every **20 seconds** via `node-cron`.
+- Uses atomic SQL updates (`UPDATE ScheduledSms SET status = 'processing' WHERE ... AND status = 'scheduled'`) to prevent duplicate dispatches across server clusters.
+- Resolves recipient details, validates target SIM or selects top-priority active SIM.
+- Dispatches messages via FCM high-priority push payload and broadcasts WebSocket updates to connected clients.
+
+### 2. Interactive Calendar Timeline & Transitions (`sms_app/lib/features/schedules/`)
+- **Space-Making Entry**: When a new schedule is created, surrounding cards part smoothly to open space before the new card pops in.
+- **Live Countdown Badges**: Dedicated ticking sub-second ticker displaying exact countdowns (`In 45s`, `In 12m 30s`, `Today at 06:30 PM`).
+- **12-Shard Geometric Shatter Physics**: Custom polygon shard clipper with outward velocity vectors ($dx$, $dy$), angular rotation, and gravity parabolic drops.
+- **Immediate Bottom Sheet Dismissal**: Create/Edit bottom sheets dismiss immediately upon submission so the user can watch the timeline insertion and animation in real time.
 
 ---
 
@@ -73,10 +101,10 @@ graph TD
 SMSMitra/
 ├── server/                          # Node.js Express REST API & WebSocket Server
 │   ├── config/                      # Database (Sequelize) & Firebase Admin Config
-│   ├── controllers/                 # Auth, SMS, Device, and Report Controllers
-│   ├── models/                      # Sequelize Models (User, SMSLog, Device, etc.)
-│   ├── routes/                      # Express Route Definitions
-│   ├── utils/                       # Token generation, helpers, and FCM dispatcher
+│   ├── controllers/                 # Auth, SMS, Schedules, Devices, and Report Controllers
+│   ├── models/                      # Sequelize Models (User, ScheduledSms, SMSLog, Device, etc.)
+│   ├── routes/                      # Express Route Definitions (auth, sms, schedules, reports)
+│   ├── utils/                       # Scheduler cron daemon, FCM dispatcher, and helpers
 │   ├── index.js                     # Application Entry Point & Socket.IO initialization
 │   ├── package.json
 │   └── .env.example
@@ -91,21 +119,23 @@ SMSMitra/
     │   │   └── theme/               # Design tokens (AppSpacing, AppRadius, AppColors)
     │   ├── data/                    # Data Layer
     │   │   ├── cache/               # Hive Caching & CacheManager
-    │   │   ├── models/              # UserModel, SettingsModel, SimModel, SmsLogModel
+    │   │   ├── models/              # UserModel, ScheduledSmsModel, SimModel, SmsLogModel
     │   │   ├── providers/           # Riverpod Service Providers (DI Layer)
     │   │   ├── repositories/        # AuthRepository & Repository Interfaces
-    │   │   └── services/            # ApiService, SimService, SmsService, StorageService
+    │   │   └── services/            # ApiService, ScheduledSmsService, SimService, SmsService
     │   ├── features/                # Presentation Layer (Feature-Driven)
     │   │   ├── auth/                # Login, Register screens & AuthNotifier
     │   │   ├── home/                # Dashboard, Stats, Quick Send & HomeNotifier
     │   │   ├── profile/             # Profile management & Logout
     │   │   ├── reports/             # Filterable reports, logs table & PDF export
+    │   │   ├── schedules/           # Google Calendar Timeline, Shatter Animations & SchedulesNotifier
+    │   │   │   ├── widgets/         # ScheduleSmsSheet, Calendar Day Sections, AnimatedTimelineItem
     │   │   ├── settings/            # SIM priority, limits, permissions & theme
     │   │   └── splash/              # Animated Splash & Session routing
     │   ├── shared/                  # Reusable UI Design System Components
-    │   │   └── widgets/             # StatCard, StatusBadge, EmptyState, CustomTextField, etc.
+    │   │   └── widgets/             # StatCard (Compact & Full), StatusBadge, EmptyState, etc.
     │   └── main.dart                # Global error handlers & FCM background receiver
-    ├── test/                        # Automated Unit, Widget & DI Test Suite (43+ Tests)
+    ├── test/                        # Automated Unit, Widget & DI Test Suite (54+ Tests)
     ├── pubspec.yaml
     └── analysis_options.yaml        # Strict Analyzer & Production Linter Rules
 ```
@@ -177,7 +207,7 @@ npm run dev
 # Or production mode
 npm start
 ```
-The server will automatically synchronize Sequelize tables and listen on `http://localhost:5000`.
+The server will automatically synchronize Sequelize tables (including `ScheduledSms`), start the 20-second background scheduler daemon, and listen on `http://localhost:5000`.
 
 ---
 
@@ -247,7 +277,7 @@ Google Play Protect flags sideloaded APKs requesting `SEND_SMS` permissions and 
 
 ## 🧪 Testing & Code Quality
 
-The codebase enforces strict static analysis (`strict-casts`, `strict-inference`, `strict-raw-types`) and includes a comprehensive test suite.
+The codebase enforces strict static analysis (`strict-casts`, `strict-inference`, `strict-raw-types`) and includes a comprehensive automated test suite.
 
 ### Run Static Analysis
 ```bash
@@ -261,12 +291,13 @@ flutter analyze
 cd sms_app
 flutter test
 ```
-*Test coverage covers 43+ automated tests across:*
+*Test coverage covers 54+ automated tests across:*
+- **Schedules & Timeline**: Creation, optimistic updates, date/time pickers, 12-shard destruction animations, cancellation & countdown badges.
 - **Error Handling**: Domain exception mappings, Dio error interceptors, HTTP status code translation.
 - **Navigation**: Declarative GoRouter auth guards, deep linking, custom 404 screens, RouteObservers.
 - **Validation**: RFC regex email, 10-digit mobile formatting with international prefixes, SMS limit boundaries.
 - **Widget Lifecycle & Safety**: Memory leak safety, focus nodes, stream subscriptions, and unmount checks.
-- **Design Tokens & UI**: Reusable `StatCard`, `StatusBadge`, `EmptyStateWidget`, `ConfirmBottomSheet`.
+- **Design Tokens & UI**: Reusable compact `StatCard`, `StatusBadge`, `EmptyStateWidget`, `ConfirmBottomSheet`.
 - **Dependency Injection**: Riverpod service provider overrides and mock isolation.
 
 ---
@@ -278,6 +309,12 @@ flutter test
 - `POST /smsmitra/v1/auth/login` — Authenticate and retrieve JWT token.
 - `POST /smsmitra/v1/auth/update-token` — Update device FCM push token.
 - `POST /smsmitra/v1/auth/update-profile` — Update account profile details.
+
+### Scheduled SMS
+- `POST /smsmitra/v1/schedules` — Schedule a new SMS message with dispatch timestamp and target SIM.
+- `GET /smsmitra/v1/schedules?userId=:id&status=:status` — Fetch user's scheduled messages and summary counts.
+- `PUT /smsmitra/v1/schedules/:id` — Edit an upcoming scheduled message (phone, text, SIM, time).
+- `DELETE /smsmitra/v1/schedules/:id` — Cancel an upcoming scheduled SMS.
 
 ### SIM & Gateway Operations
 - `POST /smsmitra/v1/sms/sync-sims` — Sync detected physical SIM cards and configured quota limits.
