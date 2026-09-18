@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import '../../core/routes/app_router.dart';
 import '../../core/helpers/validation_helper.dart';
 import '../../core/helpers/snackbar_helper.dart';
 import '../../shared/widgets/custom_text_field.dart';
@@ -12,6 +14,7 @@ import '../../shared/widgets/confirm_bottom_sheet.dart';
 import '../settings/settings_provider.dart';
 import '../schedules/widgets/schedule_sms_sheet.dart';
 import '../frequent/widgets/frequent_sms_sheet.dart';
+import '../bulk_sms/widgets/templates_sheet.dart';
 import 'stats_provider.dart';
 import 'sms_controller.dart';
 import '../../data/services/socket_service.dart';
@@ -218,7 +221,95 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                   Colors.blue,
                   isFullWidth: true,
                 ),
-                const SizedBox(height: 28),
+                const SizedBox(height: 24),
+
+                // ── Bulk SMS & Templates Hub ────────────────────────
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).cardColor,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.25),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.04),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Icon(
+                                  Icons.campaign_rounded,
+                                  color: Theme.of(context).colorScheme.primary,
+                                  size: 20,
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Text(
+                                'Bulk SMS & Templates',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.bold,
+                                  color: Theme.of(context).colorScheme.onSurface,
+                                ),
+                              ),
+                            ],
+                          ),
+                          TextButton.icon(
+                            onPressed: () => TemplatesSheet.show(context),
+                            icon: const Icon(Icons.bookmark_outline_rounded, size: 16),
+                            label: const Text('Templates', style: TextStyle(fontSize: 12)),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        'Import CSV contacts, map custom column placeholders, and dispatch multi-recipient SMS campaigns.',
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          color: Theme.of(context).textTheme.bodySmall?.color,
+                          height: 1.35,
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      ElevatedButton.icon(
+                        onPressed: () => context.push(AppRouter.bulkSms),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Theme.of(context).colorScheme.primary,
+                          foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                          minimumSize: const Size(double.infinity, 44),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          elevation: 0,
+                        ),
+                        icon: const Icon(Icons.send_and_archive_rounded, size: 18),
+                        label: const Text(
+                          'Launch Bulk SMS Campaign',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 24),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
