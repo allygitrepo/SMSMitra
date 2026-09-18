@@ -9,6 +9,8 @@ import '../../data/repositories/auth_repository.dart';
 import '../../data/providers/user_provider.dart';
 import '../../data/models/user_model.dart';
 import '../../shared/widgets/custom_text_field.dart';
+import 'widgets/api_credentials_card.dart';
+import 'widgets/api_code_snippets_modal.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -115,6 +117,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       appBar: AppBar(
         title: const Text('My Profile'),
         actions: [
+          if (!_isEditing && user?.deviceCode != null)
+            IconButton(
+              icon: const Icon(Icons.code_rounded),
+              onPressed: () => ApiCodeSnippetsModal.show(
+                context,
+                deviceCode: user!.deviceCode!,
+              ),
+              tooltip: 'Developer API Hub',
+            ),
           if (!_isEditing)
             IconButton(
               icon: const Icon(Icons.edit_outlined),
@@ -145,6 +156,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   _buildInfoCard(user),
 
                   const SizedBox(height: 20),
+
+                  // API Credentials & Developer Hub Card
+                  if (!_isEditing) ...[
+                    ApiCredentialsCard(deviceCode: user?.deviceCode),
+                    const SizedBox(height: 20),
+                  ],
 
                   // Action Buttons
                   _buildActions(),

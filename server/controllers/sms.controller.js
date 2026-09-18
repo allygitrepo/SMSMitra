@@ -29,7 +29,22 @@ const notifyStatsUpdate = async (userId, io) => {
 
 exports.sendSmsTrigger = async (req, res) => {
   try {
-    const { deviceCode, phoneNumber, message } = req.body;
+    const deviceCode = req.headers['x-api-key'] || 
+                       req.headers['x-device-code'] || 
+                       req.query.apiKey || 
+                       req.query.deviceCode || 
+                       req.body.deviceCode;
+
+    const phoneNumber = req.body.phoneNumber || req.query.phoneNumber;
+    const message = req.body.message || req.query.message;
+
+    if (!deviceCode) {
+      return res.status(400).json({ message: 'API Key / Device Code is required (via x-api-key header, query param, or body)' });
+    }
+
+    if (!phoneNumber || !message) {
+      return res.status(400).json({ message: 'phoneNumber and message are required' });
+    }
 
     const user = await User.findOne({ where: { deviceCode } });
     if (!user) return res.status(404).json({ message: 'Invalid Device Code' });

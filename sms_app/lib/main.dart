@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:sms_app/data/cache/cache_service.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_provider.dart';
@@ -63,6 +64,18 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
             "To: $phoneNumber, SIM: $simId",
       );
       await CacheService().incrementSentStats();
+
+      // Show Toast Notification
+      unawaited(
+        Fluttertoast.showToast(
+          msg: "✉️ SMS successfully sent to $phoneNumber",
+          toastLength: Toast.LENGTH_SHORT,
+          gravity: ToastGravity.BOTTOM,
+          backgroundColor: const Color(0xFF2E7D32),
+          textColor: Colors.white,
+          fontSize: 14.0,
+        ),
+      );
     } catch (e) {
       await smsApi.updateSmsStatus(
         logId: logId,
@@ -73,6 +86,18 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
         "SMS Failed (Background)",
         level: 'error',
         details: "Error: $e",
+      );
+
+      // Show Failure Toast
+      unawaited(
+        Fluttertoast.showToast(
+          msg: "❌ Failed to send SMS to $phoneNumber",
+          toastLength: Toast.LENGTH_LONG,
+          gravity: ToastGravity.BOTTOM,
+          backgroundColor: const Color(0xFFC62828),
+          textColor: Colors.white,
+          fontSize: 14.0,
+        ),
       );
     }
   }
@@ -147,7 +172,32 @@ void main() async {
           level: success ? 'info' : 'warning',
           details: "Success: $success, To: $phoneNumber",
         );
-        if (success) await CacheService().incrementSentStats();
+        if (success) {
+          await CacheService().incrementSentStats();
+          // Show Toast Notification on success
+          unawaited(
+            Fluttertoast.showToast(
+              msg: "✉️ SMS successfully sent to $phoneNumber",
+              toastLength: Toast.LENGTH_SHORT,
+              gravity: ToastGravity.BOTTOM,
+              backgroundColor: const Color(0xFF2E7D32),
+              textColor: Colors.white,
+              fontSize: 14.0,
+            ),
+          );
+        } else {
+          // Show Toast Notification on failure
+          unawaited(
+            Fluttertoast.showToast(
+              msg: "❌ Failed to send SMS to $phoneNumber",
+              toastLength: Toast.LENGTH_LONG,
+              gravity: ToastGravity.BOTTOM,
+              backgroundColor: const Color(0xFFC62828),
+              textColor: Colors.white,
+              fontSize: 14.0,
+            ),
+          );
+        }
       } catch (e) {
         await smsApi.updateSmsStatus(
           logId: logId,
@@ -159,15 +209,22 @@ void main() async {
           level: 'error',
           details: e.toString(),
         );
+
+        // Show Toast Notification on error
+        unawaited(
+          Fluttertoast.showToast(
+            msg: "❌ Failed to send SMS to $phoneNumber",
+            toastLength: Toast.LENGTH_LONG,
+            gravity: ToastGravity.BOTTOM,
+            backgroundColor: const Color(0xFFC62828),
+            textColor: Colors.white,
+            fontSize: 14.0,
+          ),
+        );
       }
     } else if (message.data['type'] == 'STATS_UPDATE') {
       // Refresh stats on dashboard
       debugPrint("FCM Stats Update Triggered");
-      // We can use the global provider container if needed, but since we are in main,
-      // we usually rely on the widgets to listen.
-      // However, for immediate update, we can't easily access the container here without a global key or similar.
-      // Better: The dashboard itself listens to FCM or we use a global event bus.
-      // Since we use Riverpod, we can use ProviderContainer if we initialize it.
     }
   });
 
