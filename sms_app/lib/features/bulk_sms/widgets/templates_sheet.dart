@@ -323,7 +323,6 @@ class _TemplatesSheetState extends ConsumerState<TemplatesSheet> {
                           final template = filtered[index];
                           return Material(
                             color: theme.cardColor,
-                            borderRadius: BorderRadius.circular(14),
                             clipBehavior: Clip.antiAlias,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(14),

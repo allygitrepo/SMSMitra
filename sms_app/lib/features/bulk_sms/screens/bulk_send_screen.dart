@@ -1,7 +1,9 @@
+import 'dart:convert';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:printing/printing.dart';
 import '../../../core/helpers/snackbar_helper.dart';
 import '../../../core/helpers/validation_helper.dart';
 import '../../../data/models/bulk_recipient_model.dart';
@@ -14,6 +16,7 @@ import '../widgets/placeholder_picker.dart';
 import '../widgets/recipient_preview_slider.dart';
 import '../widgets/bulk_progress_dialog.dart';
 import '../widgets/templates_sheet.dart';
+import '../widgets/recipients_list_sheet.dart';
 
 class BulkSendScreen extends ConsumerStatefulWidget {
   const BulkSendScreen({super.key});
@@ -22,28 +25,18 @@ class BulkSendScreen extends ConsumerStatefulWidget {
   ConsumerState<BulkSendScreen> createState() => _BulkSendScreenState();
 }
 
-class _BulkSendScreenState extends ConsumerState<BulkSendScreen>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+class _BulkSendScreenState extends ConsumerState<BulkSendScreen> {
   final _messageController = TextEditingController();
   final _phoneInputController = TextEditingController();
   final _nameInputController = TextEditingController();
-  final _pasteInputController = TextEditingController();
   final _manualFormKey = GlobalKey<FormState>();
-
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-  }
+  bool _showManualAdd = false;
 
   @override
   void dispose() {
-    _tabController.dispose();
     _messageController.dispose();
     _phoneInputController.dispose();
     _nameInputController.dispose();
-    _pasteInputController.dispose();
     super.dispose();
   }
 
@@ -69,7 +62,9 @@ class _BulkSendScreenState extends ConsumerState<BulkSendScreen>
   Future<void> _handlePickContactSingle() async {
     final contact = await ContactPickerSheet.showSingle(context);
     if (contact != null && mounted) {
-      _phoneInputController.text = contact.phone;
+      final raw = contact.phone.replaceAll(RegExp(r'[^0-9]'), '');
+      final phone10 = raw.length >= 10 ? raw.substring(raw.length - 10) : raw;
+      _phoneInputController.text = phone10;
       _nameInputController.text = contact.name;
       MessageHelper.showSuccess(context, 'Selected ${contact.name}');
     }
@@ -114,10 +109,10 @@ class _BulkSendScreenState extends ConsumerState<BulkSendScreen>
                   color: Colors.green.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(Icons.download_done_rounded, color: Colors.green, size: 22),
+                child: const Icon(Icons.file_download_done_rounded, color: Colors.green, size: 22),
               ),
               const SizedBox(width: 10),
-              const Text('CSV Template Ready', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+              const Text('Sample CSV Template', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
             ],
           ),
           content: SingleChildScrollView(
@@ -126,10 +121,10 @@ class _BulkSendScreenState extends ConsumerState<BulkSendScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'A sample CSV template has been generated with standard multi-column headers for SMSMitra.',
+                  'Standard multi-column sample template for SMS Mitra is ready:',
                   style: TextStyle(fontSize: 13),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 10),
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
@@ -140,56 +135,59 @@ class _BulkSendScreenState extends ConsumerState<BulkSendScreen>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Saved file path:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.grey)),
+                      const Text('Headers included:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
                       const SizedBox(height: 4),
+                      const Text('phone, name, amount, dueDate, invoiceNo', style: TextStyle(fontSize: 12, fontFamily: 'monospace')),
+                      const SizedBox(height: 8),
+                      const Text('Local saved path:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
+                      const SizedBox(height: 2),
                       SelectableText(
                         path,
-                        style: const TextStyle(fontSize: 11.5, fontFamily: 'monospace'),
+                        style: const TextStyle(fontSize: 10.5, fontFamily: 'monospace', color: Colors.grey),
                       ),
                     ],
                   ),
-                ),
-                const SizedBox(height: 14),
-                const Text(
-                  'Included Headers & Placeholders:\n'
-                  '• {phone} - Recipient phone number\n'
-                  '• {name} - Contact name\n'
-                  '• {amount} - Dynamic bill/invoice amount\n'
-                  '• {dueDate} - Due date reminder\n'
-                  '• {invoiceNo} - Reference ID/order number',
-                  style: TextStyle(fontSize: 12, height: 1.4),
                 ),
               ],
             ),
           ),
           actions: [
             TextButton.icon(
-              onPressed: () {
-                Clipboard.setData(const ClipboardData(text: BulkSmsService.sampleCsvTemplate));
-                MessageHelper.showSuccess(dialogCtx, 'Sample CSV copied to clipboard!');
+              onPressed: () async {
+                Navigator.pop(dialogCtx);
+                await Printing.sharePdf(
+                  bytes: Uint8List.fromList(utf8.encode(BulkSmsService.sampleCsvTemplate)),
+                  filename: 'smsmitra_sample_template.csv',
+                );
               },
-              icon: const Icon(Icons.copy_rounded, size: 16),
-              label: const Text('Copy CSV'),
+              icon: const Icon(Icons.share_rounded, size: 16),
+              label: const Text('Save / Share File'),
             ),
-            ElevatedButton.icon(
+            TextButton(
+              onPressed: () async {
+                await Clipboard.setData(const ClipboardData(text: BulkSmsService.sampleCsvTemplate));
+                if (dialogCtx.mounted) {
+                  Navigator.pop(dialogCtx);
+                  MessageHelper.showSuccess(dialogCtx, 'Sample CSV copied to clipboard');
+                }
+              },
+              child: const Text('Copy'),
+            ),
+            ElevatedButton(
               onPressed: () {
                 Navigator.pop(dialogCtx);
                 ref.read(bulkSmsProvider.notifier).parseRawText(BulkSmsService.sampleCsvTemplate);
-                MessageHelper.showSuccess(context, 'Sample template loaded into campaign!');
+                final count = ref.read(bulkSmsProvider).recipients.length;
+                MessageHelper.showSuccess(context, 'Loaded $count sample recipients');
               },
-              icon: const Icon(Icons.playlist_add_check_rounded, size: 18),
-              label: const Text('Load Sample Data'),
+              child: const Text('Load in App'),
             ),
           ],
         ),
       );
-
-      if (mounted) {
-        MessageHelper.showSuccess(context, 'Template saved to Downloads');
-      }
     } catch (e) {
       if (mounted) {
-        MessageHelper.showError(context, 'Failed to download template: $e');
+        MessageHelper.showError(context, 'Failed to prepare template: $e');
       }
     }
   }
@@ -199,53 +197,21 @@ class _BulkSendScreenState extends ConsumerState<BulkSendScreen>
       final phone = _phoneInputController.text.trim();
       final name = _nameInputController.text.trim();
 
-      ref.read(bulkSmsProvider.notifier).addManualRecipient(phone, name);
+      ref.read(bulkSmsProvider.notifier).addRecipient(
+        BulkRecipientModel(
+          phone: phone,
+          name: name,
+          customData: {
+            'phone': phone,
+            if (name.isNotEmpty) 'name': name,
+          },
+        ),
+      );
+
       _phoneInputController.clear();
       _nameInputController.clear();
-
       MessageHelper.showSuccess(context, 'Recipient added');
     }
-  }
-
-  void _handlePasteImport() {
-    final text = _pasteInputController.text.trim();
-    if (text.isEmpty) {
-      MessageHelper.showError(context, 'Please paste CSV text or numbers');
-      return;
-    }
-
-    ref.read(bulkSmsProvider.notifier).parseRawText(text);
-    _pasteInputController.clear();
-    Navigator.pop(context);
-    MessageHelper.showSuccess(context, 'Contacts imported');
-  }
-
-  void _showPasteDialog() {
-    showDialog<void>(
-      context: context,
-      builder: (dialogCtx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Paste Contacts / CSV'),
-        content: TextField(
-          controller: _pasteInputController,
-          maxLines: 6,
-          decoration: const InputDecoration(
-            hintText: "Phone,Name,Amount\n+919876543210,John,500\n9876543211,Jane,1200",
-            border: OutlineInputBorder(),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogCtx),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: _handlePasteImport,
-            child: const Text('Import'),
-          ),
-        ],
-      ),
-    );
   }
 
   void _handleStartCampaign() {
@@ -280,8 +246,6 @@ class _BulkSendScreenState extends ConsumerState<BulkSendScreen>
     final state = ref.watch(bulkSmsProvider);
     final notifier = ref.read(bulkSmsProvider.notifier);
     final simsAsync = ref.watch(simsProvider);
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
 
     // Listen for template selection to update text controller
     ref.listen<String>(bulkSmsProvider.select((s) => s.message), (prev, next) {
@@ -295,28 +259,43 @@ class _BulkSendScreenState extends ConsumerState<BulkSendScreen>
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Bulk SMS Campaign'),
+        title: const Text('Bulk SMS Campaign', style: TextStyle(fontWeight: FontWeight.bold)),
         actions: [
           IconButton(
             icon: const Icon(Icons.bookmark_outline_rounded),
-            tooltip: 'Templates',
-            onPressed: () => TemplatesSheet.show(context),
+            tooltip: 'Saved Templates',
+            onPressed: () => TemplatesSheet.show(
+              context,
+              onSelect: (tpl) {
+                notifier.selectTemplate(tpl);
+                _messageController.text = tpl.templateMessage;
+              },
+            ),
           ),
-          if (state.recipients.isNotEmpty)
+          if (state.recipients.isNotEmpty) ...[
+            IconButton(
+              icon: const Icon(Icons.people_alt_outlined),
+              tooltip: 'View All Recipients',
+              onPressed: () => RecipientsListSheet.show(context),
+            ),
             IconButton(
               icon: const Icon(Icons.delete_sweep_rounded, color: Colors.red),
               tooltip: 'Clear All Recipients',
-              onPressed: () => notifier.clearRecipients(),
+              onPressed: () {
+                notifier.clearRecipients();
+                MessageHelper.showSuccess(context, 'Cleared all recipients');
+              },
             ),
+          ],
         ],
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(18, 12, 18, 100),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 120),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // ── Step 1: Ingest Recipients Card ────────────────────────
-            _buildRecipientsCard(context, state),
+            // ── Step 1: Ingest Recipients Hub ────────────────────────
+            _buildRecipientsHub(context, state),
 
             const SizedBox(height: 18),
 
@@ -327,262 +306,256 @@ class _BulkSendScreenState extends ConsumerState<BulkSendScreen>
                 templateMessage: _messageController.text,
                 onEditName: (index, newName) {
                   notifier.updateRecipient(index, name: newName);
-                  MessageHelper.showSuccess(context, 'Updated contact name to: $newName');
+                  MessageHelper.showSuccess(context, 'Updated contact name: $newName');
                 },
               ),
               const SizedBox(height: 18),
             ],
 
-            // ── Step 2: Template Selector & Message Composer ──────────
+            // ── Step 2: Message Composer ─────────────────────────────
             _buildComposerCard(context, state, notifier, charCount, partsCount),
 
             const SizedBox(height: 18),
 
-            // ── Step 3: Dispatch Gateway Configuration ────────────────
+            // ── Step 3: Gateway & Throttling ─────────────────────────
             _buildGatewayCard(context, state, notifier, simsAsync),
-
-            const SizedBox(height: 24),
           ],
         ),
       ),
-      bottomNavigationBar: Container(
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-        decoration: BoxDecoration(
-          color: theme.cardColor,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.08),
-              blurRadius: 10,
-              offset: const Offset(0, -3),
-            ),
-          ],
-        ),
-        child: SafeArea(
-          child: ElevatedButton.icon(
-            onPressed: state.isSending ? null : _handleStartCampaign,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: colorScheme.primary,
-              foregroundColor: colorScheme.onPrimary,
-              minimumSize: const Size(double.infinity, 52),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-              elevation: 0,
-            ),
-            icon: const Icon(Icons.send_rounded),
-            label: Text(
-              state.recipients.isEmpty
-                  ? 'Start Campaign'
-                  : 'Start Campaign (${state.recipients.length} SMS)',
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-          ),
-        ),
-      ),
+      bottomNavigationBar: _buildBottomActionBar(context, state),
     );
   }
 
-  // ── Recipients Card ─────────────────────────────────────────────────────────
+  // ── Step 1: Recipients Hub ──────────────────────────────────────────────────
 
-  Widget _buildRecipientsCard(BuildContext context, BulkSmsState state) {
+  Widget _buildRecipientsHub(BuildContext context, BulkSmsState state) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final recipientCount = state.recipients.length;
 
     return Container(
       decoration: BoxDecoration(
         color: theme.cardColor,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(color: theme.dividerColor.withValues(alpha: 0.5)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
       ),
+      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Header Bar
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.blue.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Icon(Icons.group_rounded, color: Colors.blue, size: 20),
-                    ),
-                    const SizedBox(width: 10),
-                    Text(
-                      '1. Add Recipients',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                        color: colorScheme.onSurface,
-                      ),
-                    ),
-                  ],
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: colorScheme.primary.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    '${state.recipients.length} Added',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: colorScheme.primary,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // Tabs: File Import vs Manual Input
-          TabBar(
-            controller: _tabController,
-            indicatorColor: colorScheme.primary,
-            labelColor: colorScheme.primary,
-            unselectedLabelColor: theme.textTheme.bodySmall?.color,
-            tabs: const [
-              Tab(icon: Icon(Icons.upload_file_rounded, size: 18), text: 'Upload File (CSV)'),
-              Tab(icon: Icon(Icons.edit_rounded, size: 18), text: 'Manual / Single'),
-            ],
-          ),
-
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: SizedBox(
-              height: 200,
-              child: TabBarView(
-                controller: _tabController,
+          // Header Row
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
                 children: [
-                  // Tab 1: Upload File & Contacts
-                  Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: ElevatedButton.icon(
-                              onPressed: _handlePickContactsMulti,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: colorScheme.primary.withValues(alpha: 0.12),
-                                foregroundColor: colorScheme.primary,
-                                elevation: 0,
-                                minimumSize: const Size(0, 46),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                side: BorderSide(color: colorScheme.primary.withValues(alpha: 0.4)),
-                              ),
-                              icon: const Icon(Icons.contacts_rounded, size: 18),
-                              label: const Text('From Contacts', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: OutlinedButton.icon(
-                              onPressed: state.isParsing ? null : _pickAndParseFile,
-                              style: OutlinedButton.styleFrom(
-                                minimumSize: const Size(0, 46),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                side: BorderSide(color: colorScheme.primary.withValues(alpha: 0.5)),
-                              ),
-                              icon: state.isParsing
-                                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                                  : const Icon(Icons.file_upload_outlined, size: 18),
-                              label: Text(
-                                state.isParsing ? 'Parsing...' : 'Upload CSV',
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          TextButton.icon(
-                            onPressed: _handleDownloadCsvTemplate,
-                            icon: const Icon(Icons.file_download_outlined, size: 16),
-                            label: const Text('Download CSV Template', style: TextStyle(fontSize: 12)),
-                          ),
-                          TextButton.icon(
-                            onPressed: _showPasteDialog,
-                            icon: const Icon(Icons.content_paste_rounded, size: 16),
-                            label: const Text('Paste Raw CSV', style: TextStyle(fontSize: 12)),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Supports custom columns (Name, Phone, Amount, DueDate, etc.)',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 11, color: theme.textTheme.bodySmall?.color),
-                      ),
-                    ],
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.group_rounded, color: Colors.blue, size: 20),
                   ),
-
-                  // Tab 2: Manual Add
-                  Form(
-                    key: _manualFormKey,
-                    child: Column(
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              flex: 3,
-                              child: TextFormField(
-                                controller: _phoneInputController,
-                                keyboardType: TextInputType.phone,
-                                decoration: InputDecoration(
-                                  labelText: 'Mobile Number *',
-                                  hintText: '+919876543210',
-                                  prefixIcon: const Icon(Icons.phone_outlined, size: 18),
-                                  suffixIcon: IconButton(
-                                    icon: Icon(Icons.contacts_rounded, size: 18, color: colorScheme.primary),
-                                    tooltip: 'Choose from Contacts',
-                                    onPressed: _handlePickContactSingle,
-                                  ),
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                                ),
-                                validator: (v) => ValidationHelper.validatePhone(v),
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              flex: 2,
-                              child: TextFormField(
-                                controller: _nameInputController,
-                                decoration: InputDecoration(
-                                  labelText: 'Name',
-                                  hintText: 'John Doe',
-                                  prefixIcon: const Icon(Icons.person_outline, size: 18),
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        ElevatedButton.icon(
-                          onPressed: _handleManualAdd,
-                          style: ElevatedButton.styleFrom(
-                            minimumSize: const Size(double.infinity, 44),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                          ),
-                          icon: const Icon(Icons.add_rounded, size: 18),
-                          label: const Text('Add Recipient'),
-                        ),
-                      ],
+                  const SizedBox(width: 10),
+                  Text(
+                    '1. Target Audience',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: colorScheme.onSurface,
                     ),
                   ),
                 ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: recipientCount > 0
+                      ? colorScheme.primary.withValues(alpha: 0.12)
+                      : Colors.grey.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  recipientCount > 0 ? '$recipientCount Ready' : '0 Added',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: recipientCount > 0 ? colorScheme.primary : Colors.grey,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+
+          // Active Summary Banner if contacts are loaded
+          if (recipientCount > 0) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: colorScheme.primary.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: colorScheme.primary.withValues(alpha: 0.25)),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.check_circle_rounded, color: colorScheme.primary, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '$recipientCount Recipients Configured',
+                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: colorScheme.primary),
+                        ),
+                        if (state.discoveredColumns.length > 2)
+                          Text(
+                            'Variables: ${state.discoveredColumns.join(', ')}',
+                            style: TextStyle(fontSize: 11, color: theme.textTheme.bodySmall?.color),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                      ],
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () => RecipientsListSheet.show(context),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    child: const Text('View / Manage', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+          ],
+
+          // Ingestion Action Buttons Grid
+          Row(
+            children: [
+              Expanded(
+                child: _buildActionTile(
+                  icon: Icons.contacts_rounded,
+                  label: 'From Contacts',
+                  color: colorScheme.primary,
+                  onTap: _handlePickContactsMulti,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _buildActionTile(
+                  icon: Icons.upload_file_rounded,
+                  label: state.isParsing ? 'Parsing CSV...' : 'Upload CSV',
+                  color: Colors.teal,
+                  isLoading: state.isParsing,
+                  onTap: state.isParsing ? null : _pickAndParseFile,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          _buildActionTile(
+            icon: _showManualAdd ? Icons.close_rounded : Icons.person_add_rounded,
+            label: _showManualAdd ? 'Close Manual Input' : 'Add Single Recipient',
+            color: Colors.indigo,
+            onTap: () => setState(() => _showManualAdd = !_showManualAdd),
+          ),
+
+          // Inline Single Recipient Form
+          if (_showManualAdd) ...[
+            const SizedBox(height: 14),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: theme.dividerColor.withValues(alpha: 0.4)),
+              ),
+              child: Form(
+                key: _manualFormKey,
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          flex: 3,
+                          child: TextFormField(
+                            controller: _phoneInputController,
+                            keyboardType: TextInputType.phone,
+                            decoration: InputDecoration(
+                              labelText: 'Phone Number *',
+                              hintText: '9876543210',
+                              prefixIcon: const Icon(Icons.phone_android_rounded, size: 18),
+                              suffixIcon: IconButton(
+                                icon: Icon(Icons.contacts_rounded, size: 18, color: colorScheme.primary),
+                                tooltip: 'Select Contact',
+                                onPressed: _handlePickContactSingle,
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                            ),
+                            validator: ValidationHelper.validatePhone,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          flex: 2,
+                          child: TextFormField(
+                            controller: _nameInputController,
+                            decoration: InputDecoration(
+                              labelText: 'Name (Optional)',
+                              hintText: 'John Doe',
+                              prefixIcon: const Icon(Icons.person_outline, size: 18),
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    ElevatedButton.icon(
+                      onPressed: _handleManualAdd,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: colorScheme.primary,
+                        foregroundColor: colorScheme.onPrimary,
+                        minimumSize: const Size(double.infinity, 40),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        elevation: 0,
+                      ),
+                      icon: const Icon(Icons.add_rounded, size: 18),
+                      label: const Text('Add to Campaign', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+
+          const SizedBox(height: 12),
+
+          // Download CSV Template Pill
+          Center(
+            child: TextButton.icon(
+              onPressed: _handleDownloadCsvTemplate,
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                visualDensity: VisualDensity.compact,
+              ),
+              icon: const Icon(Icons.download_rounded, size: 16, color: Colors.teal),
+              label: const Text(
+                'Download Sample CSV Template',
+                style: TextStyle(fontSize: 12, color: Colors.teal, fontWeight: FontWeight.w600),
               ),
             ),
           ),
@@ -591,7 +564,59 @@ class _BulkSendScreenState extends ConsumerState<BulkSendScreen>
     );
   }
 
-  // ── Message Composer Card ───────────────────────────────────────────────────
+  Widget _buildActionTile({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback? onTap,
+    bool isLoading = false,
+  }) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Material(
+      color: isDark ? color.withValues(alpha: 0.1) : color.withValues(alpha: 0.08),
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: color.withValues(alpha: 0.3)),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (isLoading)
+                SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: color),
+                )
+              else
+                Icon(icon, size: 18, color: color),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.bold,
+                    color: color,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── Step 2: Message Composer ────────────────────────────────────────────────
 
   Widget _buildComposerCard(
     BuildContext context,
@@ -606,14 +631,21 @@ class _BulkSendScreenState extends ConsumerState<BulkSendScreen>
     return Container(
       decoration: BoxDecoration(
         color: theme.cardColor,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(color: theme.dividerColor.withValues(alpha: 0.5)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
       ),
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Header & Template Button
+          // Header Row
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -625,7 +657,7 @@ class _BulkSendScreenState extends ConsumerState<BulkSendScreen>
                       color: Colors.orange.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Icon(Icons.message_rounded, color: Colors.orange, size: 20),
+                    child: const Icon(Icons.edit_note_rounded, color: Colors.orange, size: 20),
                   ),
                   const SizedBox(width: 10),
                   Text(
@@ -638,7 +670,7 @@ class _BulkSendScreenState extends ConsumerState<BulkSendScreen>
                   ),
                 ],
               ),
-              OutlinedButton.icon(
+              TextButton.icon(
                 onPressed: () => TemplatesSheet.show(
                   context,
                   onSelect: (tpl) {
@@ -646,19 +678,18 @@ class _BulkSendScreenState extends ConsumerState<BulkSendScreen>
                     _messageController.text = tpl.templateMessage;
                   },
                 ),
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   visualDensity: VisualDensity.compact,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),
-                icon: const Icon(Icons.bookmark_outline_rounded, size: 15),
-                label: const Text('Templates', style: TextStyle(fontSize: 12)),
+                icon: const Icon(Icons.bookmark_outline_rounded, size: 16, color: Colors.teal),
+                label: const Text('Templates', style: TextStyle(fontSize: 12, color: Colors.teal, fontWeight: FontWeight.bold)),
               ),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
 
-          // Dynamic Placeholder Picker Bar
+          // Dynamic Placeholder Picker
           PlaceholderPicker(
             columns: state.discoveredColumns,
             onSelected: (col) {
@@ -670,37 +701,42 @@ class _BulkSendScreenState extends ConsumerState<BulkSendScreen>
           ),
           const SizedBox(height: 12),
 
-          // Message Text Area
+          // Text Field
           TextField(
             controller: _messageController,
             maxLines: 5,
             onChanged: (val) => notifier.setMessage(val),
             decoration: InputDecoration(
-              hintText: 'Type your message here... Use {name}, {phone}, or column variables from above.',
+              hintText: 'Type your message... e.g. Hello {name}, your amount of Rs.{amount} is due on {dueDate}.',
+              hintStyle: const TextStyle(fontSize: 13),
               filled: true,
               fillColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: theme.dividerColor),
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide(color: theme.dividerColor.withValues(alpha: 0.5)),
               ),
               enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(14),
                 borderSide: BorderSide(color: theme.dividerColor.withValues(alpha: 0.5)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide(color: colorScheme.primary, width: 1.5),
               ),
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
 
-          // Counters
+          // Counters Row
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                '$charCount characters',
+                '$charCount chars',
                 style: TextStyle(fontSize: 12, color: theme.textTheme.bodySmall?.color),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                   color: partsCount > 1
                       ? Colors.orange.withValues(alpha: 0.15)
@@ -723,7 +759,7 @@ class _BulkSendScreenState extends ConsumerState<BulkSendScreen>
     );
   }
 
-  // ── Gateway & Throttling Card ───────────────────────────────────────────────
+  // ── Step 3: Gateway & Throttling ────────────────────────────────────────────
 
   Widget _buildGatewayCard(
     BuildContext context,
@@ -737,8 +773,15 @@ class _BulkSendScreenState extends ConsumerState<BulkSendScreen>
     return Container(
       decoration: BoxDecoration(
         color: theme.cardColor,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(color: theme.dividerColor.withValues(alpha: 0.5)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
       ),
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -756,7 +799,7 @@ class _BulkSendScreenState extends ConsumerState<BulkSendScreen>
               ),
               const SizedBox(width: 10),
               Text(
-                '3. Gateway & SIM Slot',
+                '3. Gateway & Speed',
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.bold,
@@ -767,23 +810,24 @@ class _BulkSendScreenState extends ConsumerState<BulkSendScreen>
           ),
           const SizedBox(height: 14),
 
-          // SIM Selector
+          // SIM Dropdown
           simsAsync.when(
             data: (sims) {
               if (sims.isEmpty) {
-                return const Text('No SIM cards detected on device.');
+                return const Text('No SIM cards detected on device.', style: TextStyle(color: Colors.grey));
               }
               return DropdownButtonFormField<String>(
                 initialValue: state.selectedSimId ?? (sims.isNotEmpty ? sims.first.id : null),
                 decoration: InputDecoration(
-                  labelText: 'Dispatch SIM Card',
+                  labelText: 'Outbound SIM Gateway',
+                  prefixIcon: const Icon(Icons.sim_card_outlined),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                   contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 ),
                 items: sims.map((sim) {
                   return DropdownMenuItem<String>(
                     value: sim.id,
-                    child: Text('${sim.carrierName} (Slot ${sim.slotIndex + 1})'),
+                    child: Text('${sim.carrierName} (${sim.number.isNotEmpty ? sim.number : 'Slot ${sim.slotIndex + 1}'})'),
                   );
                 }).toList(),
                 onChanged: (val) => notifier.setSelectedSim(val),
@@ -795,16 +839,16 @@ class _BulkSendScreenState extends ConsumerState<BulkSendScreen>
 
           const SizedBox(height: 14),
 
-          // Throttling Delay
+          // Throttle slider
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Dispatch Delay per SMS: ${state.delayMs}ms',
+                'Dispatch Rate: ${state.delayMs}ms / SMS',
                 style: TextStyle(fontSize: 12.5, color: theme.textTheme.bodySmall?.color),
               ),
               Text(
-                '~${((1000 / (state.delayMs + 100)) * 60).round()} SMS/min',
+                '⚡ ~${((1000 / (state.delayMs + 100)) * 60).round()} SMS/min',
                 style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.green),
               ),
             ],
@@ -818,6 +862,50 @@ class _BulkSendScreenState extends ConsumerState<BulkSendScreen>
             onChanged: (val) => notifier.setDelay(val.round()),
           ),
         ],
+      ),
+    );
+  }
+
+  // ── Bottom Action Bar ───────────────────────────────────────────────────────
+
+  Widget _buildBottomActionBar(BuildContext context, BulkSmsState state) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final canLaunch = state.recipients.isNotEmpty && _messageController.text.trim().isNotEmpty && !state.isSending;
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        border: Border(top: BorderSide(color: theme.dividerColor.withValues(alpha: 0.5))),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 10,
+            offset: const Offset(0, -3),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        child: ElevatedButton.icon(
+          onPressed: canLaunch ? _handleStartCampaign : null,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: colorScheme.primary,
+            foregroundColor: colorScheme.onPrimary,
+            minimumSize: const Size(double.infinity, 50),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            elevation: 0,
+          ),
+          icon: const Icon(Icons.send_rounded, size: 20),
+          label: Text(
+            state.recipients.isEmpty
+                ? 'Add Recipients to Launch'
+                : _messageController.text.trim().isEmpty
+                    ? 'Enter Message to Launch'
+                    : 'Launch Campaign (${state.recipients.length} SMS)',
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+          ),
+        ),
       ),
     );
   }

@@ -32,27 +32,18 @@ class BulkSmsService {
   BulkSmsService({ApiService? apiService})
       : _apiService = apiService ?? ApiService();
 
-  /// Saves the sample CSV template to the user's device storage (Downloads / Documents)
+  /// Saves the sample CSV template to the user's device storage
   static Future<String> downloadSampleCsvTemplate() async {
-    Directory? directory;
+    Directory directory;
     try {
       if (Platform.isAndroid) {
-        final downloadDir = Directory('/storage/emulated/0/Download');
-        if (await downloadDir.exists()) {
-          directory = downloadDir;
-        } else {
-          directory = await getExternalStorageDirectory();
-        }
-      } else if (Platform.isIOS || Platform.isMacOS) {
-        directory = await getApplicationDocumentsDirectory();
+        directory = (await getExternalStorageDirectory()) ?? (await getApplicationDocumentsDirectory());
       } else {
-        directory = await getDownloadsDirectory() ?? await getApplicationDocumentsDirectory();
+        directory = await getApplicationDocumentsDirectory();
       }
     } catch (_) {
       directory = await getApplicationDocumentsDirectory();
     }
-
-    directory ??= await getApplicationDocumentsDirectory();
 
     final filePath = '${directory.path}/smsmitra_sample_template.csv';
     final file = File(filePath);

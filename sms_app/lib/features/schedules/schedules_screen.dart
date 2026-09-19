@@ -956,27 +956,27 @@ class _SchedulesScreenState extends ConsumerState<SchedulesScreen> with WidgetsB
               ]
             : null,
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        child: IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Left Accent Strip (Google Calendar style)
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 350),
-                curve: Curves.easeInOutCubic,
-                width: 4,
-                color: effectiveAccent,
-              ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Left Accent Strip (Google Calendar style)
+          Container(
+            width: 4,
+            height: 48,
+            margin: const EdgeInsets.only(top: 10, left: 3),
+            decoration: BoxDecoration(
+              color: effectiveAccent,
+              borderRadius: BorderRadius.circular(4),
+            ),
+          ),
 
-              // Card Content
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.all(AppSpacing.sm + 2),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
+          // Card Content
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.sm + 2),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                       // Top Row: Time, Countdown, StatusBadge
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1164,8 +1164,6 @@ class _SchedulesScreenState extends ConsumerState<SchedulesScreen> with WidgetsB
               ),
             ],
           ),
-        ),
-      ),
     );
   }
 }

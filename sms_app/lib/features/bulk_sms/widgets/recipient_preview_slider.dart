@@ -25,7 +25,7 @@ class _RecipientPreviewSliderState extends State<RecipientPreviewSlider> {
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Row(
           children: [
             Icon(Icons.edit_note_rounded, color: Colors.blue),
@@ -37,7 +37,7 @@ class _RecipientPreviewSliderState extends State<RecipientPreviewSlider> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Phone: ${recipient.phone}', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+            Text('Mobile: ${recipient.phone}', style: const TextStyle(fontSize: 12, color: Colors.grey)),
             const SizedBox(height: 12),
             TextField(
               controller: controller,
@@ -45,6 +45,7 @@ class _RecipientPreviewSliderState extends State<RecipientPreviewSlider> {
               decoration: InputDecoration(
                 labelText: 'Contact Name',
                 hintText: 'Enter name',
+                prefixIcon: const Icon(Icons.person_outline),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               ),
             ),
@@ -81,16 +82,20 @@ class _RecipientPreviewSliderState extends State<RecipientPreviewSlider> {
     final colorScheme = theme.colorScheme;
     final isDark = theme.brightness == Brightness.dark;
 
+    final initials = (recipient.name.isNotEmpty)
+        ? recipient.name.trim().split(' ').map((e) => e.isNotEmpty ? e[0].toUpperCase() : '').take(2).join()
+        : '#';
+
     return Container(
       decoration: BoxDecoration(
         color: theme.cardColor,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(color: colorScheme.primary.withValues(alpha: 0.25)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 3),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -98,115 +103,136 @@ class _RecipientPreviewSliderState extends State<RecipientPreviewSlider> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Header
+          // Section Header
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(6),
+                    padding: const EdgeInsets.all(7),
                     decoration: BoxDecoration(
                       color: Colors.purple.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Icon(Icons.preview_rounded, size: 16, color: Colors.purple),
+                    child: const Icon(Icons.preview_rounded, size: 18, color: Colors.purple),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 10),
                   Text(
                     'Live Personalization Preview',
                     style: TextStyle(
-                      fontSize: 13,
+                      fontSize: 14.5,
                       fontWeight: FontWeight.bold,
                       color: colorScheme.onSurface,
                     ),
                   ),
                 ],
               ),
-              Text(
-                '${safeIndex + 1} of ${widget.recipients.length}',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: colorScheme.primary,
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.purple.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  '${safeIndex + 1} / ${widget.recipients.length}',
+                  style: const TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.purple,
+                  ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
 
-          // Recipient Meta pill
+          // Message Preview Container (Chat bubble look)
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-              borderRadius: BorderRadius.circular(8),
+              color: isDark ? const Color(0xFF192231) : const Color(0xFFF1F5F9),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: theme.dividerColor.withValues(alpha: 0.4)),
             ),
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.person_outline, size: 15, color: Colors.grey),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    recipient.name.isNotEmpty ? recipient.name : 'Unknown Name',
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                if (widget.onEditName != null) ...[
-                  InkWell(
-                    borderRadius: BorderRadius.circular(6),
-                    onTap: () => _showEditNameDialog(context, safeIndex, recipient),
-                    child: Padding(
-                      padding: const EdgeInsets.all(3.0),
-                      child: Icon(Icons.edit_outlined, size: 15, color: colorScheme.primary),
+                // Recipient Header row in bubble
+                Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 14,
+                      backgroundColor: Colors.purple.withValues(alpha: 0.2),
+                      child: Text(
+                        initials,
+                        style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: Colors.purple),
+                      ),
                     ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        recipient.name.isNotEmpty ? recipient.name : 'Unknown Recipient',
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (widget.onEditName != null) ...[
+                      InkWell(
+                        borderRadius: BorderRadius.circular(6),
+                        onTap: () => _showEditNameDialog(context, safeIndex, recipient),
+                        child: const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          child: Row(
+                            children: [
+                              Icon(Icons.edit_outlined, size: 13, color: Colors.blue),
+                              SizedBox(width: 3),
+                              Text('Edit', style: TextStyle(fontSize: 11, color: Colors.blue)),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                    ],
+                    Text(
+                      recipient.phone,
+                      style: TextStyle(fontSize: 11.5, fontFamily: 'monospace', color: theme.textTheme.bodySmall?.color),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                const Divider(height: 1),
+                const SizedBox(height: 10),
+
+                // Interpolated Message Body
+                SelectableText(
+                  previewText,
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    height: 1.45,
+                    color: isDark ? Colors.white.withValues(alpha: 0.9) : Colors.black87,
                   ),
-                  const SizedBox(width: 8),
-                ],
-                Text(
-                  recipient.phone,
-                  style: const TextStyle(fontSize: 12, fontFamily: 'monospace', color: Colors.grey),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
 
-          // Message Preview bubble
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF3F4F6),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: theme.dividerColor.withValues(alpha: 0.5)),
-            ),
-            child: Text(
-              previewText,
-              style: TextStyle(
-                fontSize: 13,
-                height: 1.4,
-                color: isDark ? Colors.white70 : Colors.black87,
-              ),
-            ),
-          ),
-          const SizedBox(height: 10),
-
-          // Stepper Controls
+          // Stepper & Slider navigation
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              IconButton(
-                icon: const Icon(Icons.arrow_back_ios_rounded, size: 16),
+              IconButton.filledTonal(
+                icon: const Icon(Icons.arrow_back_rounded, size: 16),
                 onPressed: safeIndex > 0
                     ? () => setState(() => _currentIndex = safeIndex - 1)
                     : null,
                 visualDensity: VisualDensity.compact,
               ),
+              const SizedBox(width: 8),
               Expanded(
                 child: SliderTheme(
                   data: SliderTheme.of(context).copyWith(
-                    trackHeight: 2,
+                    trackHeight: 3,
                     thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
                     overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
                   ),
@@ -219,8 +245,9 @@ class _RecipientPreviewSliderState extends State<RecipientPreviewSlider> {
                   ),
                 ),
               ),
-              IconButton(
-                icon: const Icon(Icons.arrow_forward_ios_rounded, size: 16),
+              const SizedBox(width: 8),
+              IconButton.filledTonal(
+                icon: const Icon(Icons.arrow_forward_rounded, size: 16),
                 onPressed: safeIndex < widget.recipients.length - 1
                     ? () => setState(() => _currentIndex = safeIndex + 1)
                     : null,

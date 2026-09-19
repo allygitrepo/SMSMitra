@@ -227,6 +227,11 @@ class BulkSmsNotifier extends StateNotifier<BulkSmsState> {
     );
   }
 
+  /// Convenience wrapper to add a BulkRecipientModel instance
+  void addRecipient(BulkRecipientModel recipient) {
+    addManualRecipient(recipient.phone, recipient.name, recipient.customData);
+  }
+
   /// Adds multiple recipients (e.g. from multi-select contact picker) in a single batch
   void addMultipleRecipients(List<BulkRecipientModel> incoming) {
     if (incoming.isEmpty) return;

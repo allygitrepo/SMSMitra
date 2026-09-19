@@ -256,26 +256,27 @@ class _FrequentScreenState extends ConsumerState<FrequentScreen> with WidgetsBin
           color: isActive ? accentColor.withValues(alpha: 0.3) : theme.dividerColor.withValues(alpha: 0.6),
         ),
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        child: IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Left Accent Strip
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 300),
-                width: 4,
-                color: accentColor,
-              ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Left Accent Strip
+          Container(
+            width: 4,
+            height: 48,
+            margin: const EdgeInsets.only(top: 10, left: 3),
+            decoration: BoxDecoration(
+              color: accentColor,
+              borderRadius: BorderRadius.circular(4),
+            ),
+          ),
 
-              // Content Area
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.all(AppSpacing.sm + 2),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
+          // Content Area
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.sm + 2),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                       // Top Row: Recurrence Badge, Next Run / Paused, and Switch
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -445,8 +446,6 @@ class _FrequentScreenState extends ConsumerState<FrequentScreen> with WidgetsBin
               ),
             ],
           ),
-        ),
-      ),
     );
   }
 }
