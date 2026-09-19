@@ -4,8 +4,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/helpers/snackbar_helper.dart';
 import '../../../core/helpers/validation_helper.dart';
+import '../../../data/models/bulk_recipient_model.dart';
 import '../../../data/models/sim_model.dart';
 import '../../../data/services/bulk_sms_service.dart';
+import '../../contacts/widgets/contact_picker_sheet.dart';
 import '../../home/stats_provider.dart';
 import '../providers/bulk_sms_provider.dart';
 import '../widgets/placeholder_picker.dart';
@@ -43,6 +45,34 @@ class _BulkSendScreenState extends ConsumerState<BulkSendScreen>
     _nameInputController.dispose();
     _pasteInputController.dispose();
     super.dispose();
+  }
+
+  Future<void> _handlePickContactsMulti() async {
+    final existingPhones = ref.read(bulkSmsProvider).recipients.map((r) => r.phone).toSet();
+    final selectedContacts = await ContactPickerSheet.showMulti(
+      context,
+      initiallySelectedPhones: existingPhones,
+    );
+
+    if (selectedContacts != null && selectedContacts.isNotEmpty && mounted) {
+      final recipients = selectedContacts.map((c) => BulkRecipientModel(
+        phone: c.phone,
+        name: c.name,
+        customData: {'name': c.name, 'phone': c.phone},
+      )).toList();
+
+      ref.read(bulkSmsProvider.notifier).addMultipleRecipients(recipients);
+      MessageHelper.showSuccess(context, 'Imported ${selectedContacts.length} contacts');
+    }
+  }
+
+  Future<void> _handlePickContactSingle() async {
+    final contact = await ContactPickerSheet.showSingle(context);
+    if (contact != null && mounted) {
+      _phoneInputController.text = contact.phone;
+      _nameInputController.text = contact.name;
+      MessageHelper.showSuccess(context, 'Selected ${contact.name}');
+    }
   }
 
   Future<void> _pickAndParseFile() async {
@@ -295,6 +325,10 @@ class _BulkSendScreenState extends ConsumerState<BulkSendScreen>
               RecipientPreviewSlider(
                 recipients: state.recipients,
                 templateMessage: _messageController.text,
+                onEditName: (index, newName) {
+                  notifier.updateRecipient(index, name: newName);
+                  MessageHelper.showSuccess(context, 'Updated contact name to: $newName');
+                },
               ),
               const SizedBox(height: 18),
             ],
@@ -422,28 +456,50 @@ class _BulkSendScreenState extends ConsumerState<BulkSendScreen>
           Padding(
             padding: const EdgeInsets.all(16),
             child: SizedBox(
-              height: 195,
+              height: 200,
               child: TabBarView(
                 controller: _tabController,
                 children: [
-                  // Tab 1: Upload File
+                  // Tab 1: Upload File & Contacts
                   Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      OutlinedButton.icon(
-                        onPressed: state.isParsing ? null : _pickAndParseFile,
-                        style: OutlinedButton.styleFrom(
-                          minimumSize: const Size(double.infinity, 48),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          side: BorderSide(color: colorScheme.primary.withValues(alpha: 0.5)),
-                        ),
-                        icon: state.isParsing
-                            ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                            : const Icon(Icons.file_upload_outlined),
-                        label: Text(
-                          state.isParsing ? 'Parsing Columns...' : 'Select CSV / Contacts File',
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: _handlePickContactsMulti,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: colorScheme.primary.withValues(alpha: 0.12),
+                                foregroundColor: colorScheme.primary,
+                                elevation: 0,
+                                minimumSize: const Size(0, 46),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                side: BorderSide(color: colorScheme.primary.withValues(alpha: 0.4)),
+                              ),
+                              icon: const Icon(Icons.contacts_rounded, size: 18),
+                              label: const Text('From Contacts', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: state.isParsing ? null : _pickAndParseFile,
+                              style: OutlinedButton.styleFrom(
+                                minimumSize: const Size(0, 46),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                side: BorderSide(color: colorScheme.primary.withValues(alpha: 0.5)),
+                              ),
+                              icon: state.isParsing
+                                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                                  : const Icon(Icons.file_upload_outlined, size: 18),
+                              label: Text(
+                                state.isParsing ? 'Parsing...' : 'Upload CSV',
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 8),
                       Row(
@@ -486,6 +542,11 @@ class _BulkSendScreenState extends ConsumerState<BulkSendScreen>
                                   labelText: 'Mobile Number *',
                                   hintText: '+919876543210',
                                   prefixIcon: const Icon(Icons.phone_outlined, size: 18),
+                                  suffixIcon: IconButton(
+                                    icon: Icon(Icons.contacts_rounded, size: 18, color: colorScheme.primary),
+                                    tooltip: 'Choose from Contacts',
+                                    onPressed: _handlePickContactSingle,
+                                  ),
                                   contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
                                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                                 ),

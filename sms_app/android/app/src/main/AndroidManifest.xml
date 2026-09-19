@@ -9,9 +9,10 @@
     <uses-permission android:name="android.permission.RECEIVE_SMS" />
     <uses-permission android:name="android.permission.READ_SMS" />
 
-    <!-- SIM / Phone Info -->
+    <!-- SIM / Phone Info & Contacts -->
     <uses-permission android:name="android.permission.READ_PHONE_STATE" />
     <uses-permission android:name="android.permission.READ_PHONE_NUMBERS" />
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
 
     <!-- Background / Wake -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />

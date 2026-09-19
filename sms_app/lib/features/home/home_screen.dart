@@ -15,6 +15,7 @@ import '../settings/settings_provider.dart';
 import '../schedules/widgets/schedule_sms_sheet.dart';
 import '../frequent/widgets/frequent_sms_sheet.dart';
 import '../bulk_sms/widgets/templates_sheet.dart';
+import '../contacts/widgets/contact_picker_sheet.dart';
 import 'stats_provider.dart';
 import 'sms_controller.dart';
 import '../../data/services/socket_service.dart';
@@ -30,8 +31,10 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObserver {
   final _formKey = GlobalKey<FormState>();
   final _phoneController = TextEditingController();
+  final _nameController = TextEditingController();
   final _messageController = TextEditingController();
   final _phoneFocus = FocusNode();
+  final _nameFocus = FocusNode();
   final _messageFocus = FocusNode();
   bool _isSyncing = false;
   StreamSubscription<RemoteMessage>? _fcmSubscription;
@@ -82,24 +85,36 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
     _socketSubscription?.cancel();
     SocketService().disconnect();
     _phoneController.dispose();
+    _nameController.dispose();
     _messageController.dispose();
     _phoneFocus.dispose();
+    _nameFocus.dispose();
     _messageFocus.dispose();
     super.dispose();
   }
 
   Future<void> _handleSend() async {
     if (_formKey.currentState!.validate()) {
+      final phone = _phoneController.text.trim();
+      final name = _nameController.text.trim();
+      var message = _messageController.text.trim();
+
+      // If message contains {name} tag and name is provided, dynamically interpolate it
+      if (name.isNotEmpty) {
+        message = message.replaceAll(RegExp(r'\{\s*name\s*\}', caseSensitive: false), name);
+      }
+
       final success = await ref.read(smsControllerProvider.notifier).sendQuickSms(
-        phone: _phoneController.text.trim(),
-        message: _messageController.text.trim(),
+        phone: phone,
+        message: message,
       );
 
       if (!mounted) return;
 
       final smsState = ref.read(smsControllerProvider);
       if (success) {
-        MessageHelper.showSuccess(context, smsState.successMessage ?? 'SMS dispatched successfully!');
+        final target = name.isNotEmpty ? '$name ($phone)' : phone;
+        MessageHelper.showSuccess(context, 'SMS dispatched to $target');
         _messageController.clear();
       } else {
         MessageHelper.showError(context, smsState.errorMessage ?? 'Failed to send SMS');
@@ -457,9 +472,31 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                 LengthLimitingTextInputFormatter(10),
               ],
               validator: ValidationHelper.validatePhone,
+              onFieldSubmitted: (_) => _nameFocus.requestFocus(),
+              suffixIcon: IconButton(
+                icon: const Icon(Icons.contacts_rounded, color: Colors.blue, size: 20),
+                tooltip: 'Select from Contacts',
+                onPressed: () async {
+                  final contact = await ContactPickerSheet.showSingle(context);
+                  if (contact != null && mounted) {
+                    final raw = contact.phone.replaceAll(RegExp(r'[^0-9]'), '');
+                    final phone10 = raw.length >= 10 ? raw.substring(raw.length - 10) : raw;
+                    _phoneController.text = phone10;
+                    _nameController.text = contact.name;
+                    MessageHelper.showSuccess(context, 'Selected ${contact.name}');
+                  }
+                },
+              ),
+            ),
+            CustomTextField(
+              label: 'Recipient Name (Optional)',
+              hint: 'e.g. John Doe, Acme Corp',
+              icon: Icons.person_outline,
+              controller: _nameController,
+              focusNode: _nameFocus,
+              textInputAction: TextInputAction.next,
               onFieldSubmitted: (_) => _messageFocus.requestFocus(),
             ),
-            const SizedBox(height: 16),
             TextFormField(
               controller: _messageController,
               focusNode: _messageFocus,

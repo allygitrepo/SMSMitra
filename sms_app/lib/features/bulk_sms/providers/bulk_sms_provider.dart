@@ -227,6 +227,63 @@ class BulkSmsNotifier extends StateNotifier<BulkSmsState> {
     );
   }
 
+  /// Adds multiple recipients (e.g. from multi-select contact picker) in a single batch
+  void addMultipleRecipients(List<BulkRecipientModel> incoming) {
+    if (incoming.isEmpty) return;
+
+    final existingPhones = state.recipients.map((r) => r.phone).toSet();
+    final toAdd = <BulkRecipientModel>[];
+    int duplicatesCount = 0;
+
+    for (final r in incoming) {
+      final formatted = BulkSmsService.formatPhoneNumber(r.phone);
+      if (formatted.replaceAll('+', '').length < 8) continue;
+
+      if (existingPhones.contains(formatted)) {
+        duplicatesCount++;
+      } else {
+        existingPhones.add(formatted);
+        toAdd.add(r.copyWith(phone: formatted));
+      }
+    }
+
+    if (toAdd.isEmpty) {
+      state = state.copyWith(
+        errorMessage: 'All selected contacts are already in recipient list.',
+      );
+      return;
+    }
+
+    final allCols = <String>{'name', 'phone', ...state.discoveredColumns}.toList();
+
+    state = state.copyWith(
+      recipients: [...state.recipients, ...toAdd],
+      discoveredColumns: allCols,
+      clearError: true,
+      summaryMessage: 'Added ${toAdd.length} contact(s)${duplicatesCount > 0 ? ' ($duplicatesCount duplicates skipped)' : ''}.',
+    );
+  }
+
+  /// Updates name/phone of an existing recipient
+  void updateRecipient(int index, {String? name, String? phone}) {
+    if (index < 0 || index >= state.recipients.length) return;
+    final r = state.recipients[index];
+    final updatedName = (name ?? r.name).trim();
+    final updatedPhone = phone != null ? BulkSmsService.formatPhoneNumber(phone) : r.phone;
+    final updatedCustomData = Map<String, String>.from(r.customData);
+    updatedCustomData['name'] = updatedName;
+    updatedCustomData['phone'] = updatedPhone;
+
+    final updatedList = List<BulkRecipientModel>.from(state.recipients);
+    updatedList[index] = r.copyWith(
+      name: updatedName,
+      phone: updatedPhone,
+      customData: updatedCustomData,
+    );
+
+    state = state.copyWith(recipients: updatedList);
+  }
+
   void removeRecipient(int index) {
     if (index < 0 || index >= state.recipients.length) return;
     final updated = List<BulkRecipientModel>.from(state.recipients)..removeAt(index);

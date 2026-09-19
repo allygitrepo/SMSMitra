@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.os.Build
+import android.provider.ContactsContract
 import android.telephony.SmsManager
 import android.telephony.SubscriptionManager
 import android.util.Log
@@ -52,6 +53,21 @@ class SmsPlugin : FlutterPlugin, MethodCallHandler {
             "getSimCards" -> {
                 val simList = getSimCards()
                 result.success(simList)
+            }
+
+            "getContacts" -> {
+                Thread {
+                    try {
+                        val contacts = getDeviceContacts()
+                        android.os.Handler(android.os.Looper.getMainLooper()).post {
+                            result.success(contacts)
+                        }
+                    } catch (e: Exception) {
+                        android.os.Handler(android.os.Looper.getMainLooper()).post {
+                            result.error("CONTACTS_ERROR", e.message, null)
+                        }
+                    }
+                }.start()
             }
 
             "sendSms" -> {
@@ -401,5 +417,52 @@ class SmsPlugin : FlutterPlugin, MethodCallHandler {
                 IntentFilter(SMS_DELIVERED)
             )
         }
+    }
+
+    private fun getDeviceContacts(): List<Map<String, Any?>> {
+        val contactList = ArrayList<Map<String, Any?>>()
+        val seenNumbers = HashSet<String>()
+
+        val projection = arrayOf(
+            ContactsContract.CommonDataKinds.Phone.CONTACT_ID,
+            ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,
+            ContactsContract.CommonDataKinds.Phone.NUMBER
+        )
+
+        try {
+            val cursor = context.contentResolver.query(
+                ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
+                projection,
+                null,
+                null,
+                "${ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME} ASC"
+            )
+
+            cursor?.use { c ->
+                val idIndex = c.getColumnIndex(ContactsContract.CommonDataKinds.Phone.CONTACT_ID)
+                val nameIndex = c.getColumnIndex(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME)
+                val numberIndex = c.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER)
+
+                while (c.moveToNext()) {
+                    val id = if (idIndex != -1) c.getString(idIndex) ?: "" else ""
+                    val name = if (nameIndex != -1) c.getString(nameIndex) ?: "" else ""
+                    val rawNumber = if (numberIndex != -1) c.getString(numberIndex) ?: "" else ""
+
+                    val cleanNumber = rawNumber.trim().replace(Regex("[^0-9+]"), "")
+                    if (cleanNumber.isNotEmpty() && !seenNumbers.contains(cleanNumber)) {
+                        seenNumbers.add(cleanNumber)
+                        val map = HashMap<String, Any?>()
+                        map["id"] = id
+                        map["name"] = name
+                        map["phone"] = cleanNumber
+                        contactList.add(map)
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error querying contacts: ${e.message}")
+        }
+
+        return contactList
     }
 }

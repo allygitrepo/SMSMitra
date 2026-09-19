@@ -197,16 +197,16 @@ class _TemplatesSheetState extends ConsumerState<TemplatesSheet> {
       return t.templateName.toLowerCase().contains(q) || t.templateMessage.toLowerCase().contains(q);
     }).toList();
 
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.85,
-      decoration: BoxDecoration(
-        color: theme.scaffoldBackgroundColor,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      child: Column(
-        children: [
-          // Header
-          Container(
+    return Material(
+      color: theme.scaffoldBackgroundColor,
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      clipBehavior: Clip.antiAlias,
+      child: SizedBox(
+        height: MediaQuery.of(context).size.height * 0.85,
+        child: Column(
+          children: [
+            // Header
+            Container(
             padding: const EdgeInsets.fromLTRB(20, 12, 16, 12),
             decoration: BoxDecoration(
               color: theme.cardColor,
@@ -395,6 +395,7 @@ class _TemplatesSheetState extends ConsumerState<TemplatesSheet> {
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 }

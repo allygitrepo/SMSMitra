@@ -4,11 +4,13 @@ import '../../../data/models/bulk_recipient_model.dart';
 class RecipientPreviewSlider extends StatefulWidget {
   final List<BulkRecipientModel> recipients;
   final String templateMessage;
+  final void Function(int index, String newName)? onEditName;
 
   const RecipientPreviewSlider({
     super.key,
     required this.recipients,
     required this.templateMessage,
+    this.onEditName,
   });
 
   @override
@@ -17,6 +19,54 @@ class RecipientPreviewSlider extends StatefulWidget {
 
 class _RecipientPreviewSliderState extends State<RecipientPreviewSlider> {
   int _currentIndex = 0;
+
+  void _showEditNameDialog(BuildContext context, int index, BulkRecipientModel recipient) {
+    final controller = TextEditingController(text: recipient.name);
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: const Row(
+          children: [
+            Icon(Icons.edit_note_rounded, color: Colors.blue),
+            SizedBox(width: 8),
+            Text('Edit Recipient Name', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Phone: ${recipient.phone}', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              autofocus: true,
+              decoration: InputDecoration(
+                labelText: 'Contact Name',
+                hintText: 'Enter name',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final newName = controller.text.trim();
+              Navigator.pop(ctx);
+              widget.onEditName?.call(index, newName);
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -96,11 +146,24 @@ class _RecipientPreviewSliderState extends State<RecipientPreviewSlider> {
               children: [
                 const Icon(Icons.person_outline, size: 15, color: Colors.grey),
                 const SizedBox(width: 6),
-                Text(
-                  recipient.name.isNotEmpty ? recipient.name : 'Unknown Name',
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                Expanded(
+                  child: Text(
+                    recipient.name.isNotEmpty ? recipient.name : 'Unknown Name',
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-                const Spacer(),
+                if (widget.onEditName != null) ...[
+                  InkWell(
+                    borderRadius: BorderRadius.circular(6),
+                    onTap: () => _showEditNameDialog(context, safeIndex, recipient),
+                    child: Padding(
+                      padding: const EdgeInsets.all(3.0),
+                      child: Icon(Icons.edit_outlined, size: 15, color: colorScheme.primary),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                ],
                 Text(
                   recipient.phone,
                   style: const TextStyle(fontSize: 12, fontFamily: 'monospace', color: Colors.grey),

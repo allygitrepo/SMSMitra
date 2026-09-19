@@ -21,6 +21,7 @@ class CustomTextField extends StatefulWidget {
   final bool enabled;
   final int? maxLength;
   final bool autocorrect;
+  final Widget? suffixIcon;
 
   const CustomTextField({
     super.key,
@@ -41,6 +42,7 @@ class CustomTextField extends StatefulWidget {
     this.enabled = true,
     this.maxLength,
     this.autocorrect = false,
+    this.suffixIcon,
   });
 
   @override
@@ -103,7 +105,7 @@ class _CustomTextFieldState extends State<CustomTextField> {
                       });
                     },
                   )
-                : null,
+                : widget.suffixIcon,
           ),
         ),
         const SizedBox(height: 20),
