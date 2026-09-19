@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'home/home_screen.dart';
-import 'schedules/schedules_screen.dart';
+import 'bulk_sms/screens/bulk_send_screen.dart';
 import 'reports/reports_screen.dart';
+import 'schedules/schedules_screen.dart';
 import 'settings/settings_screen.dart';
-import 'profile/profile_screen.dart';
 
 class MainNavigation extends StatefulWidget {
   const MainNavigation({super.key});
@@ -19,10 +19,10 @@ class _MainNavigationState extends State<MainNavigation> {
   Widget build(BuildContext context) {
     final pages = [
       const HomeScreen(),
-      const SchedulesScreen(),
+      const BulkSendScreen(),
       const ReportsScreen(),
+      const SchedulesScreen(),
       const SettingsScreen(), // isFirstTime defaults to false
-      const ProfileScreen(),
     ];
 
     return Scaffold(
@@ -44,9 +44,9 @@ class _MainNavigationState extends State<MainNavigation> {
             label: 'Home',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.schedule_outlined),
-            activeIcon: Icon(Icons.schedule),
-            label: 'Schedules',
+            icon: Icon(Icons.campaign_outlined),
+            activeIcon: Icon(Icons.campaign_rounded),
+            label: 'Bulk',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.assessment_outlined),
@@ -54,17 +54,18 @@ class _MainNavigationState extends State<MainNavigation> {
             label: 'Reports',
           ),
           BottomNavigationBarItem(
+            icon: Icon(Icons.schedule_outlined),
+            activeIcon: Icon(Icons.schedule),
+            label: 'Schedule',
+          ),
+          BottomNavigationBarItem(
             icon: Icon(Icons.settings_outlined),
             activeIcon: Icon(Icons.settings),
             label: 'Settings',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline),
-            activeIcon: Icon(Icons.person),
-            label: 'Profile',
           ),
         ],
       ),
     );
   }
 }
+

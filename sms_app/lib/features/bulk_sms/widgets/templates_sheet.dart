@@ -321,18 +321,13 @@ class _TemplatesSheetState extends ConsumerState<TemplatesSheet> {
                         separatorBuilder: (_, __) => const SizedBox(height: 10),
                         itemBuilder: (context, index) {
                           final template = filtered[index];
-                          return Container(
-                            decoration: BoxDecoration(
-                              color: theme.cardColor,
+                          return Material(
+                            color: theme.cardColor,
+                            borderRadius: BorderRadius.circular(14),
+                            clipBehavior: Clip.antiAlias,
+                            shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(14),
-                              border: Border.all(color: theme.dividerColor.withValues(alpha: 0.5)),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.03),
-                                  blurRadius: 6,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
+                              side: BorderSide(color: theme.dividerColor.withValues(alpha: 0.5)),
                             ),
                             child: ListTile(
                               contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),

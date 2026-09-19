@@ -7,6 +7,7 @@ import '../../features/auth/register_screen.dart';
 import '../../features/settings/settings_screen.dart';
 import '../../features/main_navigation.dart';
 import '../../features/bulk_sms/screens/bulk_send_screen.dart';
+import '../../features/profile/profile_screen.dart';
 import '../../shared/widgets/gradient_button.dart';
 import '../utils/logger.dart';
 
@@ -34,6 +35,7 @@ class AppRouter {
   static const String setupSim = '/setup-sim';
   static const String home = '/home';
   static const String bulkSms = '/bulk-sms';
+  static const String profile = '/profile';
 
   static final router = GoRouter(
     initialLocation: splash,
@@ -99,6 +101,10 @@ class AppRouter {
       GoRoute(
         path: bulkSms,
         builder: (context, state) => const BulkSendScreen(),
+      ),
+      GoRoute(
+        path: profile,
+        builder: (context, state) => const ProfileScreen(),
       ),
     ],
   );

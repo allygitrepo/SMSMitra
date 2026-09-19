@@ -3,8 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
-import '../../core/routes/app_router.dart';
 import '../../core/helpers/validation_helper.dart';
 import '../../core/helpers/snackbar_helper.dart';
 import '../../shared/widgets/custom_text_field.dart';
@@ -12,10 +10,10 @@ import '../../shared/widgets/gradient_button.dart';
 import '../../shared/widgets/stat_card.dart';
 import '../../shared/widgets/confirm_bottom_sheet.dart';
 import '../settings/settings_provider.dart';
-import '../schedules/widgets/schedule_sms_sheet.dart';
-import '../frequent/widgets/frequent_sms_sheet.dart';
 import '../bulk_sms/widgets/templates_sheet.dart';
 import '../contacts/widgets/contact_picker_sheet.dart';
+import '../profile/profile_screen.dart';
+import '../../data/providers/user_provider.dart';
 import 'stats_provider.dart';
 import 'sms_controller.dart';
 import '../../data/services/socket_service.dart';
@@ -28,14 +26,14 @@ class HomeScreen extends ConsumerStatefulWidget {
   ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObserver {
+class _HomeScreenState extends ConsumerState<HomeScreen>
+    with WidgetsBindingObserver {
   final _formKey = GlobalKey<FormState>();
   final _phoneController = TextEditingController();
   final _messageController = TextEditingController();
   final _phoneFocus = FocusNode();
   final _messageFocus = FocusNode();
   String? _selectedContactName;
-  bool _isSyncing = false;
   StreamSubscription<RemoteMessage>? _fcmSubscription;
   StreamSubscription<void>? _socketSubscription;
 
@@ -44,7 +42,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) => _refreshData());
-    
+
     // Listen for real-time stats updates from server
     _fcmSubscription = FirebaseMessaging.onMessage.listen((message) {
       if (message.data['type'] == 'STATS_UPDATE') {
@@ -67,14 +65,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
 
   Future<void> _refreshData() async {
     if (!mounted) return;
-    setState(() => _isSyncing = true);
-    try {
-      await ref.read(smsStatsProvider.notifier).fetchStats();
-      // ignore: unused_result
-      await ref.refresh(simsProvider.future);
-    } finally {
-      if (mounted) setState(() => _isSyncing = false);
-    }
+    await ref.read(smsStatsProvider.notifier).fetchStats();
+    // ignore: unused_result
+    await ref.refresh(simsProvider.future);
   }
 
   @override
@@ -119,7 +112,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
           children: [
             Icon(Icons.edit_note_rounded, color: Colors.blue),
             SizedBox(width: 8),
-            Text('Edit Contact Name', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+            Text('Edit Contact Name',
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
           ],
         ),
         content: TextField(
@@ -144,7 +138,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                 _selectedContactName = newName.isNotEmpty ? newName : null;
               });
               if (newName.isNotEmpty && mounted) {
-                MessageHelper.showSuccess(context, 'Updated contact name: $newName');
+                MessageHelper.showSuccess(
+                    context, 'Updated contact name: $newName');
               }
             },
             child: const Text('Save'),
@@ -161,29 +156,33 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
 
       // If message contains {name} tag and name is provided, dynamically interpolate it
       if (_selectedContactName != null && _selectedContactName!.isNotEmpty) {
-        message = message.replaceAll(RegExp(r'\{\s*name\s*\}', caseSensitive: false), _selectedContactName!);
+        message = message.replaceAll(
+            RegExp(r'\{\s*name\s*\}', caseSensitive: false),
+            _selectedContactName!);
       }
 
-      final success = await ref.read(smsControllerProvider.notifier).sendQuickSms(
-        phone: phone,
-        message: message,
-      );
+      final success =
+          await ref.read(smsControllerProvider.notifier).sendQuickSms(
+                phone: phone,
+                message: message,
+              );
 
       if (!mounted) return;
 
       final smsState = ref.read(smsControllerProvider);
       if (success) {
-        final target = (_selectedContactName != null && _selectedContactName!.isNotEmpty)
-            ? '$_selectedContactName ($phone)'
-            : phone;
+        final target =
+            (_selectedContactName != null && _selectedContactName!.isNotEmpty)
+                ? '$_selectedContactName ($phone)'
+                : phone;
         MessageHelper.showSuccess(context, 'SMS dispatched to $target');
         _messageController.clear();
       } else {
-        MessageHelper.showError(context, smsState.errorMessage ?? 'Failed to send SMS');
+        MessageHelper.showError(
+            context, smsState.errorMessage ?? 'Failed to send SMS');
       }
     }
   }
-
 
   Future<bool> _showExitBottomSheet() async {
     return await ConfirmBottomSheet.show(
@@ -201,6 +200,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
     final settings = ref.watch(settingsProvider);
     final stats = ref.watch(smsStatsProvider);
     final simsAsync = ref.watch(simsProvider);
+    final user = ref.watch(userProvider);
 
     // Calculate dynamic stats
     final int sentToday = stats.sentToday;
@@ -209,7 +209,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
 
     String remainingText = '∞';
     if (perSimLimit != -1) {
-      final int totalLimit = activeSimCount > 0 ? activeSimCount * perSimLimit : perSimLimit;
+      final int totalLimit =
+          activeSimCount > 0 ? activeSimCount * perSimLimit : perSimLimit;
       final int remaining = (totalLimit - sentToday).clamp(0, totalLimit);
       remainingText = remaining.toString();
     }
@@ -218,9 +219,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
     String activeGateway = 'No active SIM';
     simsAsync.whenData((sims) {
       if (settings.activeSimId != null) {
-        final activeSim = sims
-            .where((s) => s.id == settings.activeSimId)
-            .firstOrNull;
+        final activeSim =
+            sims.where((s) => s.id == settings.activeSimId).firstOrNull;
         if (activeSim != null) {
           activeGateway = '${activeSim.carrierName} (${activeSim.number})';
         }
@@ -228,6 +228,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
         activeGateway = '${sims.first.carrierName} (${sims.first.number})';
       }
     });
+
+    final initials = (user?.fullName.trim().isNotEmpty ?? false)
+        ? user!.fullName
+            .trim()
+            .split(' ')
+            .where((e) => e.isNotEmpty)
+            .map((e) => e[0].toUpperCase())
+            .take(2)
+            .join()
+        : 'U';
 
     return PopScope(
       canPop: false,
@@ -240,21 +250,51 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
       },
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('SMS Mitra', style: TextStyle(fontWeight: FontWeight.bold)),
+          title: const Text('SMS Mitra',
+              style: TextStyle(fontWeight: FontWeight.bold)),
           centerTitle: false,
           actions: [
-            IconButton(
-              icon: _isSyncing
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.refresh),
-              tooltip: 'Sync Stats',
-              onPressed: _isSyncing ? null : _refreshData,
+            Padding(
+              padding: const EdgeInsets.only(right: 16),
+              child: Center(
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(24),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute<void>(builder: (context) => const ProfileScreen()),
+                    );
+                  },
+                  child: Container(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .primary
+                            .withValues(alpha: 0.6),
+                        width: 1.5,
+                      ),
+                    ),
+                    child: CircleAvatar(
+                      radius: 17,
+                      backgroundColor: Theme.of(context)
+                          .colorScheme
+                          .primary
+                          .withValues(alpha: 0.15),
+                      child: Text(
+                        initials,
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             ),
-            const SizedBox(width: 8),
           ],
         ),
         body: RefreshIndicator(
@@ -299,94 +339,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                   isFullWidth: true,
                 ),
                 const SizedBox(height: 24),
-
-                // ── Bulk SMS & Templates Hub ────────────────────────
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).cardColor,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.25),
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.04),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: Icon(
-                                  Icons.campaign_rounded,
-                                  color: Theme.of(context).colorScheme.primary,
-                                  size: 20,
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              Text(
-                                'Bulk SMS & Templates',
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.bold,
-                                  color: Theme.of(context).colorScheme.onSurface,
-                                ),
-                              ),
-                            ],
-                          ),
-                          TextButton.icon(
-                            onPressed: () => TemplatesSheet.show(context),
-                            icon: const Icon(Icons.bookmark_outline_rounded, size: 16),
-                            label: const Text('Templates', style: TextStyle(fontSize: 12)),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        'Import CSV contacts, map custom column placeholders, and dispatch multi-recipient SMS campaigns.',
-                        style: TextStyle(
-                          fontSize: 12.5,
-                          color: Theme.of(context).textTheme.bodySmall?.color,
-                          height: 1.35,
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      ElevatedButton.icon(
-                        onPressed: () => context.push(AppRouter.bulkSms),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Theme.of(context).colorScheme.primary,
-                          foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                          minimumSize: const Size(double.infinity, 44),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          elevation: 0,
-                        ),
-                        icon: const Icon(Icons.send_and_archive_rounded, size: 18),
-                        label: const Text(
-                          'Launch Bulk SMS Campaign',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 24),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -394,24 +346,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                     Row(
                       children: [
                         TextButton.icon(
-                          onPressed: () => ScheduleSmsSheet.show(context),
-                          icon: const Icon(Icons.schedule, size: 16, color: Colors.orange),
-                          label: const Text(
-                            'Schedule',
-                            style: TextStyle(
-                              color: Colors.orange,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
+                          onPressed: () => TemplatesSheet.show(
+                            context,
+                            onSelect: (template) {
+                              setState(() {
+                                _messageController.text =
+                                    template.templateMessage;
+                              });
+                            },
                           ),
-                        ),
-                        TextButton.icon(
-                          onPressed: () => FrequentSmsSheet.show(context),
-                          icon: const Icon(Icons.repeat_rounded, size: 16, color: Colors.purple),
+                          icon: const Icon(Icons.bookmark_outline_rounded,
+                              size: 16, color: Colors.teal),
                           label: const Text(
-                            'Recurring',
+                            'Template',
                             style: TextStyle(
-                              color: Colors.purple,
+                              color: Colors.teal,
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
                             ),
@@ -489,7 +438,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
       icon: icon,
       color: color,
       isFullWidth: isFullWidth,
-      progress: (label == 'Remaining' && value != '∞') ? _calculateProgress(value) : null,
+      progress: (label == 'Remaining' && value != '∞')
+          ? _calculateProgress(value)
+          : null,
     );
   }
 
@@ -501,7 +452,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
       final int perSimLimit = settings.dailySmsLimit;
       final int activeSimCount = settings.simPriority.length;
       final int totalLimit = activeSimCount * perSimLimit;
-      
+
       if (totalLimit <= 0) return 0.0;
       return (sentToday / totalLimit).clamp(0.0, 1.0);
     } catch (e) {
@@ -536,41 +487,55 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
               validator: ValidationHelper.validatePhone,
               onFieldSubmitted: (_) => _messageFocus.requestFocus(),
               suffixIcon: IconButton(
-                icon: const Icon(Icons.contacts_rounded, color: Colors.blue, size: 20),
+                icon: const Icon(Icons.contacts_rounded,
+                    color: Colors.blue, size: 20),
                 tooltip: 'Select from Contacts',
                 onPressed: () async {
                   final contact = await ContactPickerSheet.showSingle(context);
                   if (contact != null && mounted) {
                     final raw = contact.phone.replaceAll(RegExp(r'[^0-9]'), '');
-                    final phone10 = raw.length >= 10 ? raw.substring(raw.length - 10) : raw;
+                    final phone10 =
+                        raw.length >= 10 ? raw.substring(raw.length - 10) : raw;
                     setState(() {
                       _phoneController.text = phone10;
                       _selectedContactName = contact.name.trim();
                     });
-                    MessageHelper.showSuccess(context, 'Selected ${contact.name}');
+                    MessageHelper.showSuccess(
+                        context, 'Selected ${contact.name}');
                   }
                 },
               ),
             ),
 
             // Contact Name Badge & Direct Insert Action
-            if (_selectedContactName != null && _selectedContactName!.isNotEmpty) ...[
+            if (_selectedContactName != null &&
+                _selectedContactName!.isNotEmpty) ...[
               Container(
                 margin: const EdgeInsets.only(bottom: 12),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.08),
+                  color: Theme.of(context)
+                      .colorScheme
+                      .primary
+                      .withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.25)),
+                  border: Border.all(
+                      color: Theme.of(context)
+                          .colorScheme
+                          .primary
+                          .withValues(alpha: 0.25)),
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.account_circle_outlined, size: 18, color: Theme.of(context).colorScheme.primary),
+                    Icon(Icons.account_circle_outlined,
+                        size: 18, color: Theme.of(context).colorScheme.primary),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         _selectedContactName!,
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 13),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
@@ -578,12 +543,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                       borderRadius: BorderRadius.circular(6),
                       onTap: _showEditContactNameDialog,
                       child: const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding:
+                            EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                         child: Row(
                           children: [
-                            Icon(Icons.edit_outlined, size: 14, color: Colors.blue),
+                            Icon(Icons.edit_outlined,
+                                size: 14, color: Colors.blue),
                             SizedBox(width: 3),
-                            Text('Edit', style: TextStyle(fontSize: 11.5, color: Colors.blue)),
+                            Text('Edit',
+                                style: TextStyle(
+                                    fontSize: 11.5, color: Colors.blue)),
                           ],
                         ),
                       ),
@@ -593,10 +562,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                       borderRadius: BorderRadius.circular(8),
                       onTap: () {
                         _insertTextIntoMessage(_selectedContactName!);
-                        MessageHelper.showSuccess(context, 'Inserted "$_selectedContactName" into message');
+                        MessageHelper.showSuccess(context,
+                            'Inserted "$_selectedContactName" into message');
                       },
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
                           color: Theme.of(context).colorScheme.primary,
                           borderRadius: BorderRadius.circular(8),
@@ -605,18 +576,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                           children: [
                             Icon(Icons.add, size: 13, color: Colors.white),
                             SizedBox(width: 3),
-                            Text('Insert in Message', style: TextStyle(fontSize: 11.5, color: Colors.white, fontWeight: FontWeight.bold)),
+                            Text('Insert in Message',
+                                style: TextStyle(
+                                    fontSize: 11.5,
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold)),
                           ],
                         ),
                       ),
                     ),
                     const SizedBox(width: 4),
                     IconButton(
-                      icon: const Icon(Icons.close_rounded, size: 16, color: Colors.grey),
+                      icon: const Icon(Icons.close_rounded,
+                          size: 16, color: Colors.grey),
                       tooltip: 'Clear Contact Name',
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
-                      onPressed: () => setState(() => _selectedContactName = null),
+                      onPressed: () =>
+                          setState(() => _selectedContactName = null),
                     ),
                   ],
                 ),

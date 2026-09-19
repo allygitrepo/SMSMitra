@@ -12,6 +12,8 @@ import '../../../shared/widgets/custom_text_field.dart';
 import '../../../shared/widgets/gradient_button.dart';
 import '../../home/stats_provider.dart';
 import '../../settings/settings_provider.dart';
+import '../../bulk_sms/widgets/templates_sheet.dart';
+import '../../contacts/widgets/contact_picker_sheet.dart';
 import '../schedules_provider.dart';
 
 class ScheduleSmsSheet extends ConsumerStatefulWidget {
@@ -382,6 +384,20 @@ class _ScheduleSmsSheetState extends ConsumerState<ScheduleSmsSheet> {
                 icon: Icons.phone_android_rounded,
                 keyboardType: TextInputType.phone,
                 validator: ValidationHelper.validatePhone,
+                suffixIcon: IconButton(
+                  icon: const Icon(Icons.contacts_rounded, color: AppColors.orange, size: 20),
+                  tooltip: 'Select from Contacts',
+                  onPressed: () async {
+                    final contact = await ContactPickerSheet.showSingle(context);
+                    if (contact == null || !context.mounted) return;
+                    final raw = contact.phone.replaceAll(RegExp(r'[^0-9]'), '');
+                    final phone10 = raw.length >= 10 ? raw.substring(raw.length - 10) : raw;
+                    setState(() {
+                      _phoneController.text = phone10;
+                    });
+                    MessageHelper.showSuccess(context, 'Selected ${contact.name}');
+                  },
+                ),
               ),
 
               // SIM Selection Dropdown
@@ -533,12 +549,32 @@ class _ScheduleSmsSheetState extends ConsumerState<ScheduleSmsSheet> {
               const SizedBox(height: AppSpacing.lg),
 
               // Message Body Field
-              const Padding(
-                padding: EdgeInsets.only(left: 4, bottom: 8),
-                child: Text(
-                  'Message Body',
-                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-                ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.only(left: 4, bottom: 8),
+                    child: Text(
+                      'Message Body',
+                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                    ),
+                  ),
+                  TextButton.icon(
+                    onPressed: () => TemplatesSheet.show(
+                      context,
+                      onSelect: (template) {
+                        setState(() {
+                          _messageController.text = template.templateMessage;
+                        });
+                      },
+                    ),
+                    icon: const Icon(Icons.bookmark_outline_rounded, size: 15, color: AppColors.orange),
+                    label: const Text(
+                      'Use Template',
+                      style: TextStyle(color: AppColors.orange, fontSize: 12, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
               ),
               TextFormField(
                 controller: _messageController,
