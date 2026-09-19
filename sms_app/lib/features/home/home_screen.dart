@@ -31,11 +31,10 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObserver {
   final _formKey = GlobalKey<FormState>();
   final _phoneController = TextEditingController();
-  final _nameController = TextEditingController();
   final _messageController = TextEditingController();
   final _phoneFocus = FocusNode();
-  final _nameFocus = FocusNode();
   final _messageFocus = FocusNode();
+  String? _selectedContactName;
   bool _isSyncing = false;
   StreamSubscription<RemoteMessage>? _fcmSubscription;
   StreamSubscription<void>? _socketSubscription;
@@ -85,23 +84,84 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
     _socketSubscription?.cancel();
     SocketService().disconnect();
     _phoneController.dispose();
-    _nameController.dispose();
     _messageController.dispose();
     _phoneFocus.dispose();
-    _nameFocus.dispose();
     _messageFocus.dispose();
     super.dispose();
+  }
+
+  void _insertTextIntoMessage(String textToInsert) {
+    final text = _messageController.text;
+    final selection = _messageController.selection;
+    String newText;
+    int newPos;
+
+    if (selection.start >= 0 && selection.end >= 0) {
+      newText = text.replaceRange(selection.start, selection.end, textToInsert);
+      newPos = selection.start + textToInsert.length;
+    } else {
+      final needsSpace = text.isNotEmpty && !text.endsWith(' ');
+      newText = text + (needsSpace ? ' ' : '') + textToInsert;
+      newPos = newText.length;
+    }
+
+    _messageController.text = newText;
+    _messageController.selection = TextSelection.collapsed(offset: newPos);
+  }
+
+  void _showEditContactNameDialog() {
+    final controller = TextEditingController(text: _selectedContactName);
+    showDialog<void>(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: const Row(
+          children: [
+            Icon(Icons.edit_note_rounded, color: Colors.blue),
+            SizedBox(width: 8),
+            Text('Edit Contact Name', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: InputDecoration(
+            labelText: 'Contact Name',
+            hintText: 'Enter name',
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final newName = controller.text.trim();
+              Navigator.pop(dialogCtx);
+              setState(() {
+                _selectedContactName = newName.isNotEmpty ? newName : null;
+              });
+              if (newName.isNotEmpty && mounted) {
+                MessageHelper.showSuccess(context, 'Updated contact name: $newName');
+              }
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _handleSend() async {
     if (_formKey.currentState!.validate()) {
       final phone = _phoneController.text.trim();
-      final name = _nameController.text.trim();
       var message = _messageController.text.trim();
 
       // If message contains {name} tag and name is provided, dynamically interpolate it
-      if (name.isNotEmpty) {
-        message = message.replaceAll(RegExp(r'\{\s*name\s*\}', caseSensitive: false), name);
+      if (_selectedContactName != null && _selectedContactName!.isNotEmpty) {
+        message = message.replaceAll(RegExp(r'\{\s*name\s*\}', caseSensitive: false), _selectedContactName!);
       }
 
       final success = await ref.read(smsControllerProvider.notifier).sendQuickSms(
@@ -113,7 +173,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
 
       final smsState = ref.read(smsControllerProvider);
       if (success) {
-        final target = name.isNotEmpty ? '$name ($phone)' : phone;
+        final target = (_selectedContactName != null && _selectedContactName!.isNotEmpty)
+            ? '$_selectedContactName ($phone)'
+            : phone;
         MessageHelper.showSuccess(context, 'SMS dispatched to $target');
         _messageController.clear();
       } else {
@@ -472,7 +534,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                 LengthLimitingTextInputFormatter(10),
               ],
               validator: ValidationHelper.validatePhone,
-              onFieldSubmitted: (_) => _nameFocus.requestFocus(),
+              onFieldSubmitted: (_) => _messageFocus.requestFocus(),
               suffixIcon: IconButton(
                 icon: const Icon(Icons.contacts_rounded, color: Colors.blue, size: 20),
                 tooltip: 'Select from Contacts',
@@ -481,22 +543,86 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                   if (contact != null && mounted) {
                     final raw = contact.phone.replaceAll(RegExp(r'[^0-9]'), '');
                     final phone10 = raw.length >= 10 ? raw.substring(raw.length - 10) : raw;
-                    _phoneController.text = phone10;
-                    _nameController.text = contact.name;
+                    setState(() {
+                      _phoneController.text = phone10;
+                      _selectedContactName = contact.name.trim();
+                    });
                     MessageHelper.showSuccess(context, 'Selected ${contact.name}');
                   }
                 },
               ),
             ),
-            CustomTextField(
-              label: 'Recipient Name (Optional)',
-              hint: 'e.g. John Doe, Acme Corp',
-              icon: Icons.person_outline,
-              controller: _nameController,
-              focusNode: _nameFocus,
-              textInputAction: TextInputAction.next,
-              onFieldSubmitted: (_) => _messageFocus.requestFocus(),
-            ),
+
+            // Contact Name Badge & Direct Insert Action
+            if (_selectedContactName != null && _selectedContactName!.isNotEmpty) ...[
+              Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.25)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.account_circle_outlined, size: 18, color: Theme.of(context).colorScheme.primary),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _selectedContactName!,
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    InkWell(
+                      borderRadius: BorderRadius.circular(6),
+                      onTap: _showEditContactNameDialog,
+                      child: const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        child: Row(
+                          children: [
+                            Icon(Icons.edit_outlined, size: 14, color: Colors.blue),
+                            SizedBox(width: 3),
+                            Text('Edit', style: TextStyle(fontSize: 11.5, color: Colors.blue)),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    InkWell(
+                      borderRadius: BorderRadius.circular(8),
+                      onTap: () {
+                        _insertTextIntoMessage(_selectedContactName!);
+                        MessageHelper.showSuccess(context, 'Inserted "$_selectedContactName" into message');
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.primary,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Row(
+                          children: [
+                            Icon(Icons.add, size: 13, color: Colors.white),
+                            SizedBox(width: 3),
+                            Text('Insert in Message', style: TextStyle(fontSize: 11.5, color: Colors.white, fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded, size: 16, color: Colors.grey),
+                      tooltip: 'Clear Contact Name',
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      onPressed: () => setState(() => _selectedContactName = null),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+
             TextFormField(
               controller: _messageController,
               focusNode: _messageFocus,
