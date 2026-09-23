@@ -30,5 +30,20 @@ void main() {
       final observer = AppRouteObserver();
       expect(observer, isNotNull);
     });
+
+    test('Route path strings are distinct and properly formatted', () {
+      final routes = [
+        AppRouter.splash,
+        AppRouter.login,
+        AppRouter.register,
+        AppRouter.home,
+        AppRouter.settings,
+        AppRouter.setupSim,
+      ];
+      expect(routes.toSet().length, equals(routes.length));
+      for (final r in routes) {
+        expect(r.startsWith('/'), isTrue);
+      }
+    });
   });
 }

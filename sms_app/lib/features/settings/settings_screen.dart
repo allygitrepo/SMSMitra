@@ -130,13 +130,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with WidgetsBin
 
     return PopScope<Object?>(
       // Block back navigation during first-time setup until saved
-      canPop: !isFirstTime || _hasSaved,
+      canPop: !isFirstTime && Navigator.of(context).canPop(),
       onPopInvokedWithResult: (bool didPop, Object? result) {
-        if (!didPop && isFirstTime) {
+        if (didPop) return;
+        if (isFirstTime && !_hasSaved) {
           MessageHelper.showWarning(
             context,
             'Please select a SIM and tap "Save & Continue" to proceed.',
           );
+        } else if (GoRouterState.of(context).uri.path == AppRouter.settings ||
+            GoRouterState.of(context).uri.path == AppRouter.setupSim) {
+          context.go(AppRouter.home);
         }
       },
       child: Scaffold(
@@ -145,6 +149,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with WidgetsBin
               ? 'Setup Your SIM Card'
               : (_isEditing ? 'Edit Settings' : 'SIM & Gateway Settings')),
           automaticallyImplyLeading: !isFirstTime, // hide back arrow during setup
+          leading: (!isFirstTime &&
+                  (GoRouterState.of(context).uri.path == AppRouter.settings ||
+                      Navigator.of(context).canPop()))
+              ? IconButton(
+                  icon: const Icon(Icons.arrow_back),
+                  onPressed: () {
+                    if (Navigator.of(context).canPop()) {
+                      Navigator.of(context).pop();
+                    } else {
+                      context.go(AppRouter.home);
+                    }
+                  },
+                )
+              : null,
           actions: [
             if (!isFirstTime)
               IconButton(
@@ -313,7 +331,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with WidgetsBin
                                 ? 'Setup complete! Welcome to SMSMitra 🎉'
                                 : 'Settings updated successfully!',
                           );
-                          if (isFirstTime) {
+                          final isStandalone =
+                              GoRouterState.of(context).uri.path ==
+                                  AppRouter.settings ||
+                              GoRouterState.of(context).uri.path ==
+                                  AppRouter.setupSim;
+                          if (isFirstTime || isStandalone) {
                             context.go(AppRouter.home);
                           }
                         },
