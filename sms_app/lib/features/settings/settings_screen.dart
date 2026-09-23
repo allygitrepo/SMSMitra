@@ -128,15 +128,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with WidgetsBin
       _limitController.text = settings.dailySmsLimit.toString();
     }
 
+    final isStandaloneRoute = GoRouterState.of(context).uri.path == AppRouter.setupSim ||
+        GoRouterState.of(context).uri.path == AppRouter.settings;
+
     return PopScope<Object?>(
-      // Block back navigation during first-time setup until saved
-      canPop: !isFirstTime || _hasSaved,
+      canPop: !isFirstTime && Navigator.canPop(context),
       onPopInvokedWithResult: (bool didPop, Object? result) {
-        if (!didPop && isFirstTime) {
-          MessageHelper.showWarning(
-            context,
-            'Please select a SIM and tap "Save & Continue" to proceed.',
-          );
+        if (!didPop) {
+          if (isFirstTime && !_hasSaved) {
+            MessageHelper.showWarning(
+              context,
+              'Please select a SIM and tap "Save & Continue" to proceed.',
+            );
+          } else {
+            context.go(AppRouter.home);
+          }
         }
       },
       child: Scaffold(
@@ -144,9 +150,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with WidgetsBin
           title: Text(isFirstTime
               ? 'Setup Your SIM Card'
               : (_isEditing ? 'Edit Settings' : 'SIM & Gateway Settings')),
-          automaticallyImplyLeading: !isFirstTime, // hide back arrow during setup
+          automaticallyImplyLeading: !isFirstTime && Navigator.canPop(context),
+          leading: (!isFirstTime && isStandaloneRoute && !Navigator.canPop(context))
+              ? IconButton(
+                  icon: const Icon(Icons.arrow_back),
+                  tooltip: 'Back to Home',
+                  onPressed: () => context.go(AppRouter.home),
+                )
+              : null,
           actions: [
-            if (!isFirstTime)
+            if (!isFirstTime) ...[
+              if (!_isEditing && hasSimSelected)
+                IconButton(
+                  icon: const Icon(Icons.edit_outlined),
+                  tooltip: 'Edit Settings',
+                  onPressed: () => setState(() => _isEditing = true),
+                ),
               IconButton(
                 icon: Icon(
                   settings.themeMode == 'dark'
@@ -158,6 +177,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with WidgetsBin
                 onPressed: () => notifier.cycleTheme(),
                 tooltip: 'Cycle Theme',
               ),
+            ],
           ],
         ),
         body: SingleChildScrollView(
@@ -269,8 +289,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with WidgetsBin
 
               const SizedBox(height: 32),
 
-              // ── Save button (always shown during editing / first-time) ──
-              if (_isEditing || isFirstTime) ...[
+              // ── Save button (always shown during editing / first-time / setup) ──
+              if (_isEditing || isFirstTime || isStandaloneRoute) ...[
                 if (isFirstTime && !hasSimSelected)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 10),
@@ -313,7 +333,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with WidgetsBin
                                 ? 'Setup complete! Welcome to SMSMitra 🎉'
                                 : 'Settings updated successfully!',
                           );
-                          if (isFirstTime) {
+                          if (isFirstTime || isStandaloneRoute) {
                             context.go(AppRouter.home);
                           }
                         },

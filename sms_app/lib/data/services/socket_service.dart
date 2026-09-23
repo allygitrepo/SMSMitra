@@ -15,34 +15,56 @@ class SocketService {
   Stream<void> get statsUpdateStream => _statsUpdateController.stream;
 
   void initSocket() {
-    final user = StorageService.getUser();
-    if (user == null) return;
+    try {
+      final user = StorageService.getUser();
+      if (user == null) return;
 
-    final String baseUrl = ApiConstants.baseUrl.replaceAll('/smsmitra/v1', '');
-    
-    socket = io.io(baseUrl, <String, dynamic>{
-      'transports': ['websocket'],
-      'autoConnect': false,
-    });
+      if (socket != null && socket!.connected) {
+        return;
+      }
 
-    socket!.connect();
+      disconnect();
 
-    socket!.onConnect((_) {
-      logger.i('Socket Connected');
-      socket!.emit('join', user.id);
-    });
+      final String baseUrl = ApiConstants.baseUrl.replaceAll('/smsmitra/v1', '');
+      
+      socket = io.io(baseUrl, <String, dynamic>{
+        'transports': ['websocket'],
+        'autoConnect': false,
+        'reconnection': true,
+        'reconnectionAttempts': 5,
+        'reconnectionDelay': 3000,
+      });
 
-    socket!.on('stats_update', (data) {
-      logger.d('Socket: Stats Update Received');
-      _statsUpdateController.add(null);
-    });
+      socket!.onConnect((_) {
+        logger.i('Socket Connected');
+        socket?.emit('join', user.id);
+      });
 
-    socket!.onDisconnect((_) => logger.i('Socket Disconnected'));
+      socket!.on('stats_update', (data) {
+        logger.d('Socket: Stats Update Received');
+        if (!_statsUpdateController.isClosed) {
+          _statsUpdateController.add(null);
+        }
+      });
+
+      socket!.onConnectError((err) => logger.w('Socket Connect Error: $err'));
+      socket!.onError((err) => logger.w('Socket Error: $err'));
+      socket!.onDisconnect((_) => logger.i('Socket Disconnected'));
+
+      socket!.connect();
+    } catch (e) {
+      logger.e('SocketService init error: $e');
+    }
   }
 
   void disconnect() {
-    if (socket != null) {
-      socket!.disconnect();
+    try {
+      if (socket != null) {
+        socket!.dispose();
+        socket = null;
+      }
+    } catch (e) {
+      logger.e('SocketService disconnect error: $e');
     }
   }
 }
