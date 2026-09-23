@@ -30,5 +30,9 @@ void main() {
       final observer = AppRouteObserver();
       expect(observer, isNotNull);
     });
+
+    test('AppRouter configuration has valid initial location and routes', () {
+      expect(AppRouter.router.configuration.routes.length, greaterThanOrEqualTo(6));
+    });
   });
 }

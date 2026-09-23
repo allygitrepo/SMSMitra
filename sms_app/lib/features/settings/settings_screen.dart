@@ -122,6 +122,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with WidgetsBin
     final settings = ref.watch(settingsProvider);
     final notifier = ref.read(settingsProvider.notifier);
     final isFirstTime = widget.isFirstTime;
+    final isStandalone = isFirstTime ||
+        GoRouterState.of(context).uri.path == AppRouter.settings ||
+        GoRouterState.of(context).uri.path == AppRouter.setupSim;
     final hasSimSelected = settings.simPriority.isNotEmpty;
 
     if (_limitController.text != settings.dailySmsLimit.toString()) {
@@ -129,14 +132,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with WidgetsBin
     }
 
     return PopScope<Object?>(
-      // Block back navigation during first-time setup until saved
-      canPop: !isFirstTime || _hasSaved,
+      // Intercept pop on standalone routes to prevent app exiting unexpectedly
+      canPop: !isStandalone,
       onPopInvokedWithResult: (bool didPop, Object? result) {
-        if (!didPop && isFirstTime) {
+        if (didPop) return;
+        if (isFirstTime && !_hasSaved) {
           MessageHelper.showWarning(
             context,
             'Please select a SIM and tap "Save & Continue" to proceed.',
           );
+        } else if (Navigator.of(context).canPop()) {
+          Navigator.of(context).pop();
+        } else {
+          // Standalone route without prior backstack -> safely navigate to Home
+          context.go(AppRouter.home);
         }
       },
       child: Scaffold(
@@ -144,7 +153,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with WidgetsBin
           title: Text(isFirstTime
               ? 'Setup Your SIM Card'
               : (_isEditing ? 'Edit Settings' : 'SIM & Gateway Settings')),
-          automaticallyImplyLeading: !isFirstTime, // hide back arrow during setup
+          automaticallyImplyLeading: false,
+          leading: isFirstTime
+              ? null
+              : (Navigator.of(context).canPop()
+                  ? IconButton(
+                      icon: const Icon(Icons.arrow_back),
+                      onPressed: () => Navigator.of(context).pop(),
+                    )
+                  : (isStandalone
+                      ? IconButton(
+                          icon: const Icon(Icons.arrow_back),
+                          onPressed: () => context.go(AppRouter.home),
+                        )
+                      : null)),
           actions: [
             if (!isFirstTime)
               IconButton(
@@ -269,8 +291,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with WidgetsBin
 
               const SizedBox(height: 32),
 
-              // ── Save button (always shown during editing / first-time) ──
-              if (_isEditing || isFirstTime) ...[
+              // ── Save / Proceed button (shown during editing, first-time, or standalone) ──
+              if (_isEditing || isFirstTime || isStandalone) ...[
                 if (isFirstTime && !hasSimSelected)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 10),
@@ -290,30 +312,36 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with WidgetsBin
                     ),
                   ),
                 GradientButton(
-                  text: isFirstTime ? 'Save & Continue' : 'Update Settings',
+                  text: isFirstTime
+                      ? 'Save & Continue'
+                      : (_isEditing ? 'Save Settings' : 'Continue to Home'),
                   onPressed: _isDetecting
                       ? null
                       : () async {
-                          if (!hasSimSelected && _availableSims.isNotEmpty) {
-                            MessageHelper.showWarning(
+                          if (_isEditing || isFirstTime) {
+                            if (!hasSimSelected && _availableSims.isNotEmpty) {
+                              MessageHelper.showWarning(
+                                context,
+                                'Please select at least one SIM card to continue.',
+                              );
+                              return;
+                            }
+                            await notifier.syncWithServer();
+                            setState(() {
+                              _isEditing = false;
+                              _hasSaved = true;
+                            });
+                            if (!context.mounted) return;
+                            MessageHelper.showSuccess(
                               context,
-                              'Please select at least one SIM card to continue.',
+                              isFirstTime
+                                  ? 'Setup complete! Welcome to SMSMitra 🎉'
+                                  : 'Settings updated successfully!',
                             );
-                            return;
-                          }
-                          await notifier.syncWithServer();
-                          setState(() {
-                            _isEditing = false;
-                            _hasSaved = true;
-                          });
-                          if (!context.mounted) return;
-                          MessageHelper.showSuccess(
-                            context,
-                            isFirstTime
-                                ? 'Setup complete! Welcome to SMSMitra 🎉'
-                                : 'Settings updated successfully!',
-                          );
-                          if (isFirstTime) {
+                            if (isFirstTime || isStandalone) {
+                              context.go(AppRouter.home);
+                            }
+                          } else {
                             context.go(AppRouter.home);
                           }
                         },

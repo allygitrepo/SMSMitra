@@ -61,8 +61,8 @@ class AppRouter {
         return isSimConfigured ? home : setupSim;
       }
 
-      // 3. Authenticated user accessing home without SIM configured
-      if (location == home && !isSimConfigured) {
+      // 3. Authenticated user accessing home or settings without SIM configured
+      if ((location == home || location == settings) && !isSimConfigured) {
         return setupSim;
       }
 
