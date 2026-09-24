@@ -17,15 +17,22 @@ class SmsApiService {
       required List<SimModel> sims,
       required SettingsModel settings}) async {
     try {
-      final List<Map<String, dynamic>> simData = sims
-          .map((sim) => {
-                'id': sim.id,
-                'carrierName': sim.carrierName,
-                'number': sim.number,
-                'dailyLimit': settings.dailySmsLimit,
-                'limitPeriod': settings.limitPeriod,
-              })
-          .toList();
+      final List<Map<String, dynamic>> simData = sims.map((sim) {
+        final priorityIndex = settings.simPriority.indexOf(sim.id);
+        final isActive = priorityIndex != -1;
+        return {
+          'id': sim.id,
+          'carrierName': sim.carrierName,
+          'number': sim.number,
+          'dailyLimit': settings.dailySmsLimit,
+          'limitPeriod': settings.limitPeriod,
+          'isActive': isActive,
+          'priority': isActive ? (priorityIndex + 1) : 999,
+        };
+      }).toList();
+
+      // Sort by priority so active SIMs in order come first
+      simData.sort((a, b) => (a['priority'] as int).compareTo(b['priority'] as int));
 
       await _apiService.post(
         ApiConstants.syncSims,

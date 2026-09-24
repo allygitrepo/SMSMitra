@@ -39,7 +39,9 @@ class SmsService {
       }
 
       // Use provided simId or fall back to active settings
-      final subIdStr = simId ?? settings.activeSimId;
+      final subIdStr = (simId != null && simId.trim().isNotEmpty)
+          ? simId
+          : settings.activeSimId;
       final subId = int.tryParse(subIdStr ?? '');
 
       const channel = MethodChannel('com.example.sms_app/sim_info');

@@ -230,8 +230,8 @@ exports.syncSims = async (req, res) => {
       phoneNumber: sim.number,
       dailyLimit: sim.dailyLimit || 100,
       limitPeriod: sim.limitPeriod || 'day',
-      priority: index + 1,
-      isActive: true
+      priority: typeof sim.priority === 'number' ? sim.priority : index + 1,
+      isActive: typeof sim.isActive === 'boolean' ? sim.isActive : true
     }));
 
     await SimDetail.bulkCreate(simEntries);
