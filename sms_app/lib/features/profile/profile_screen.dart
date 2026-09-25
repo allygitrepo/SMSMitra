@@ -524,7 +524,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
     return Container(
       decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
@@ -534,27 +533,32 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ),
         ],
       ),
-      child: ListTile(
-        onTap: () => _handleLogout(context, ref),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        leading: Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(
-            color: Colors.red.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(10),
+      child: Material(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(16),
+        clipBehavior: Clip.antiAlias,
+        child: ListTile(
+          onTap: () => _handleLogout(context, ref),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          leading: Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: Colors.red.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.logout, color: Colors.red, size: 20),
           ),
-          child: const Icon(Icons.logout, color: Colors.red, size: 20),
-        ),
-        title: const Text(
-          'Logout',
-          style: TextStyle(
-            color: Colors.red,
-            fontWeight: FontWeight.w600,
-            fontSize: 15,
+          title: const Text(
+            'Logout',
+            style: TextStyle(
+              color: Colors.red,
+              fontWeight: FontWeight.w600,
+              fontSize: 15,
+            ),
           ),
+          trailing: const Icon(Icons.chevron_right, color: Colors.red),
         ),
-        trailing: const Icon(Icons.chevron_right, color: Colors.red),
       ),
     );
   }
